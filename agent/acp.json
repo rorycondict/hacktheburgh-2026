@@ -1,0 +1,10 @@
+{
+  "agent_servers": {
+    "My Agent": {
+      "command": "/absolute/path/to/uv",
+      "args": ["run", "--project", "/absolute/path/to/my-agent", "python", "/absolute/path/to/my-agent/my_agent.py"],
+      "use_idea_mcp": true,
+      "use_custom_mcp": false
+    }
+  }
+}
