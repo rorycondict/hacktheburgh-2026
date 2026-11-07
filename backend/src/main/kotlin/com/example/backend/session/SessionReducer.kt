@@ -38,6 +38,8 @@ class SessionReducer(private val projectRoot: String, private val pricing: Prici
         val touched = LinkedHashSet<String>()
         val toolCalls = LinkedHashMap<String, ToolCallDto>()
         val toolPaths = HashMap<String, Pair<String?, Int?>>()
+        /** Largest content+output size seen per tool call, so repeated updates aren't counted again. */
+        val toolUpdateChars = HashMap<String, Int>()
         var lastEventMillis = 0L
         var textBuffer = StringBuilder()
 
@@ -137,7 +139,11 @@ class SessionReducer(private val projectRoot: String, private val pricing: Prici
                 }
             }
             is AgentEvent.ToolUpdated -> {
-                s.turnIn += event.chars
+                val seen = s.toolUpdateChars[event.toolCallId] ?: 0
+                if (event.chars > seen) {
+                    s.turnIn += event.chars - seen
+                    s.toolUpdateChars[event.toolCallId] = event.chars
+                }
                 val prev = s.toolCalls[event.toolCallId]
                 val loc = event.locations?.firstOrNull()
                 val path = loc?.path?.let { rel(s, it) } ?: prev?.path
@@ -238,7 +244,7 @@ class SessionReducer(private val projectRoot: String, private val pricing: Prici
                 // Only use the hint when no tool call already explains what the agent is doing.
                 val a = s.activity
                 val toolBusy = a.toolCallId != null && s.toolCalls[a.toolCallId]?.status.let { it == "pending" || it == "in_progress" }
-                if (!toolBusy && s.pendingPermission == null && event.chars == 0) {
+                if (event.announce && !toolBusy && s.pendingPermission == null) {
                     val kind = when (event.kind) {
                         HintKind.READ -> ActivityKind.READ
                         HintKind.EDIT -> ActivityKind.EDIT

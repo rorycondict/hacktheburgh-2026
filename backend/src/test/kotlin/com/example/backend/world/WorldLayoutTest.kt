@@ -39,11 +39,11 @@ class WorldLayoutTest {
         val w = WorldLayout.build(files(), "abc", generatedAtMillis = 1)
         assertEquals(w.width * w.height, w.tiles.length)
         assertTrue(w.tiles.all { it in "# =d:wtc" }, "only legend characters")
-        assertEquals("lobby", w.rooms.first().id)
-        assertEquals(listOf("lobby", "assets", "backend", "docs", "frontend") + (0 until 14).map { "mod$it" }.sorted(), w.rooms.map { it.id })
+        assertEquals(WorldLayout.LOBBY_ID, w.rooms.first().id)
+        assertEquals(listOf(WorldLayout.LOBBY_ID, "assets", "backend", "docs", "frontend") + (0 until 14).map { "mod$it" }.sorted(), w.rooms.map { it.id })
         assertEquals(1, w.furniture.count { it.kind == FurnitureKind.SERVER })
         val server = w.furniture.single { it.kind == FurnitureKind.SERVER }
-        assertEquals("lobby", server.roomId)
+        assertEquals(WorldLayout.LOBBY_ID, server.roomId)
         assertEquals(w.terminal, server.access)
         val backend = w.rooms.single { it.id == "backend" }
         assertEquals(33, backend.fileCount)

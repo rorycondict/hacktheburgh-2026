@@ -30,7 +30,8 @@ class SummaryService(private val project: Project, private val cs: CoroutineScop
     @Volatile private var cache: Cached? = null
     private var job: Job? = null
     private var jobKey: String? = null
-    private val failedKeys = HashSet<String>()
+    /** Keys already sent to the model this session (failed or not), so a partial answer isn't re-requested on every rebuild. */
+    private val attemptedKeys = HashSet<String>()
 
     private data class Cached(val key: String, val model: String, val rooms: Map<String, String>)
 
@@ -47,16 +48,17 @@ class SummaryService(private val project: Project, private val cs: CoroutineScop
         val config = OpenAiConfig.find(project) ?: return
         val roomIds = roomInputs(idx).keys
         if (roomIds.isEmpty()) return
-        val key = cacheKey(idx)
+        val key = cacheKey(idx) + "-" + roomIds.sorted().hashCode().toUInt().toString(16)
         val c = cache ?: load()?.also { cache = it }
-        if (c != null && c.key == key && roomIds.all { it in c.rooms }) return
-        if (key in failedKeys || (job?.isActive == true && jobKey == key)) return
+        if (c != null && c.key == key) return
+        if (key in attemptedKeys || (job?.isActive == true && jobKey == key)) return
         job?.cancel()
         jobKey = key
         job = cs.launch(Dispatchers.IO) {
             try {
                 val rooms = summarise(config, idx)
                 if (rooms.isNotEmpty()) {
+                    // Rooms the model skipped keep their heuristic summary.
                     val updated = Cached(key, config.model, rooms)
                     cache = updated
                     save(updated)
@@ -65,7 +67,8 @@ class SummaryService(private val project: Project, private val cs: CoroutineScop
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 LOG.warn("LLM summaries failed: ${e.message}")
-                synchronized(this@SummaryService) { failedKeys += key }
+            } finally {
+                synchronized(this@SummaryService) { attemptedKeys += key }
             }
         }
     }

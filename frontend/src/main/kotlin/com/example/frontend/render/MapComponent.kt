@@ -28,9 +28,9 @@ import kotlin.math.roundToInt
  * hover tooltips, click on furniture/rooms. Animates at ~30 fps only while showing.
  * All methods must be called on the EDT.
  */
-class MapComponent(atlas: Atlas, colorSlot: (String) -> Int) : JComponent(), Disposable {
+class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(), Disposable {
     val scene = Scene(colorSlot)
-    private val renderer = MapRenderer(atlas)
+    private val renderer = MapRenderer(sprites)
 
     var onFurnitureClicked: (FurnitureDto) -> Unit = {}
     var onRoomClicked: (RoomDto) -> Unit = {}

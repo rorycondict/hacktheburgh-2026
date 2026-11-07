@@ -9,11 +9,11 @@ dependencies {
     implementation(project(":shared"))
 }
 
-// Sprite atlas: compiled from assets/sprites by tools/sprite-compiler and committed under assets/generated.
-// The build only copies it (it never runs the compiler). Loaded at runtime from /floorplan/atlas.{png,json}.
+// Sprites: one PNG per sprite in assets/ (flat), named as the renderer refers to them (e.g. obj_desk.png).
+// Copied unchanged and loaded at runtime from /floorplan/sprites/<name>.png (see render/Sprites.kt).
 tasks.processResources {
-    from(rootProject.file("assets/generated")) {
-        include("atlas.png", "atlas.json")
-        into("floorplan")
+    from(rootProject.file("assets")) {
+        include("*.png")
+        into("floorplan/sprites")
     }
 }

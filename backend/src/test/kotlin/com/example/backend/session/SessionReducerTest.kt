@@ -4,6 +4,7 @@ import com.example.backend.acp.AcpEventMapper
 import com.example.backend.acp.AgentEvent
 import com.example.backend.acp.ConfigOption
 import com.example.backend.acp.ConfigValue
+import com.example.backend.acp.HintKind
 import com.example.backend.acp.PlanEntry
 import com.example.backend.acp.TapLine
 import com.example.model.ActivityKind
@@ -20,11 +21,36 @@ class SessionReducerTest {
     private val root = "/home/demo/hacktheburgh-2026"
     private val pricing = Pricing.loadDefault()
 
-    private fun frames() = javaClass.getResource("/sample-session.jsonl")!!.readText().lines()
+    private fun frames() = javaClass.getResource("/floorplan/sample-session.jsonl")!!.readText().lines()
         .filter { it.isNotBlank() }.map { TapLine.parse(it) as TapLine.Frame }
 
     private fun near(expected: Double, actual: Double?) =
         assertTrue(actual != null && abs(expected - actual) < 1e-9, "expected $expected, was $actual")
+
+    @Test
+    fun writeHintMovesCharacterToFile() {
+        val r = SessionReducer(root, pricing)
+        r.apply("a", AgentEvent.SessionStarted("s", 0, root, emptyList(), null, false))
+        r.apply("a", AgentEvent.TurnStarted("s", 1, "go", 0))
+        r.apply("a", AgentEvent.FileHint("s", 2, HintKind.EDIT, "$root/backend/Foo.kt", null, "Write Foo.kt", 500))
+        val a = r.snapshot().single().activity
+        assertEquals(ActivityKind.EDIT, a.kind)
+        assertEquals("backend/Foo.kt", a.path)
+
+        // A read's response hint only carries a token count; it must not replace the activity.
+        r.apply("a", AgentEvent.FileHint("s", 3, HintKind.READ, "$root/docs/x.md", null, "Read x.md", 900, announce = false))
+        assertEquals("backend/Foo.kt", r.snapshot().single().activity.path)
+    }
+
+    @Test
+    fun repeatedToolUpdatesAreCountedOnce() {
+        val r = SessionReducer(root, pricing)
+        r.apply("a", AgentEvent.SessionStarted("s", 0, root, emptyList(), null, false))
+        r.apply("a", AgentEvent.TurnStarted("s", 1, "go", 0))
+        r.apply("a", AgentEvent.ToolStarted("s", 2, "t1", "edit", "Edit Foo.kt", "pending", emptyList(), 0))
+        repeat(10) { i -> r.apply("a", AgentEvent.ToolUpdated("s", 3L + i, "t1", null, null, "in_progress", null, 4000)) }
+        assertEquals(1000, r.snapshot().single().usage.inputTokens, "the same 4000-char payload ten times is still ~1000 tokens")
+    }
 
     @Test
     fun pricingFileLoads() {

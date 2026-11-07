@@ -12,7 +12,7 @@ HackTheBurgh 2026 entry (JetBrains track). The goal, described in `docs/prd.md`,
 - The tap forwards raw ACP frames, and the backend maps them.
 - Summaries use plain `java.net.http`, not Koog.
 
-The working product name is "Floorplan". It is not final and appears only in the bundle `.properties` files.
+The working product name is "Floorplan". It is not final and appears only in the `product.name` keys of the frontend and backend bundle `.properties` files, plus `<name>` in `plugin.xml`.
 
 ## Build and run
 
@@ -27,10 +27,9 @@ Gradle wrapper (Gradle 9.8), Kotlin 2.4, targets IntelliJ IDEA 2026.2.4. The con
 ./gradlew :backend:test :acp-tap:test                 # unit tests (plain JUnit 5 via kotlin("test"))
 ./gradlew :backend:test --tests 'com.example.backend.acp.*'   # one package/class
 ./gradlew :acp-tap:jar      # fat jar → acp-tap/build/libs/acp-tap.jar (also copied to <plugin>/tap/ by prepareSandbox)
-java tools/sprite-compiler/SpriteCompiler.java assets   # regenerate assets/generated/ from assets/sprites/*.pxl
 ```
 
-Generated sprites are committed, and the frontend build copies `assets/generated/atlas.{png,json}` into its resources at `/floorplan/`. Don't hand-edit `assets/generated/`. To feed the UI without a real agent, use the tool window's **Replay last session** action, which reads `~/.overworld/logs/` (a sample is in `docs/sample-session.jsonl`).
+Sprites are flat PNGs in `assets/`, one per sprite, named as the renderer refers to them (`tile_*`, `obj_*`, `hero_*`, `icon_*`). The user draws them by hand, so don't generate or overwrite them. The frontend build copies them to `/floorplan/sprites/`, and `frontend/.../render/Sprites.kt` loads them by name. A missing PNG draws as a magenta placeholder. That file also holds the animation frame lists and the tunic colours (`#3d72d6` / `#26498f`) that get recoloured per agent. To feed the UI without a real agent, use the tool window's **Replay last session** action, which plays the newest log in `~/.overworld/logs/`, or the bundled `backend/src/main/resources/floorplan/sample-session.jsonl` if there is none. Tests use that same file.
 
 On Windows use `gradlew.bat`. The matching IntelliJ run configurations are in `.run/`. Sandbox IDE logs are under `.intellijPlatform/sandbox/*/*/log_runIdeBackend/idea.log` and `.../log_runIdeFrontend/frontend/*/idea.log`.
 

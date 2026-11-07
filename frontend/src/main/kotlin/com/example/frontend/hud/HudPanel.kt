@@ -1,7 +1,7 @@
 package com.example.frontend.hud
 
 import com.example.frontend.FrontendBundle
-import com.example.frontend.render.Atlas
+import com.example.frontend.render.Sprites
 import com.example.model.SessionDto
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
@@ -15,7 +15,7 @@ import javax.swing.JSeparator
 
 /** Per-session HUD (model, effort, tokens, context, cost, quest log, config pickers). Call [update] on the EDT. */
 internal class HudPanel(
-    private val atlas: Atlas,
+    private val sprites: Sprites,
     private val colorSlot: (String) -> Int,
     private val onConfigChange: (sessionId: String, configId: String, value: String) -> Unit,
 ) : JPanel() {
@@ -36,7 +36,7 @@ internal class HudPanel(
         val ids = sessions.map { it.sessionId }
         cards.keys.retainAll(ids.toSet())
         for (s in sessions) {
-            cards.getOrPut(s.sessionId) { SessionCard(atlas, colorSlot(s.sessionId), onConfigChange) }.update(s)
+            cards.getOrPut(s.sessionId) { SessionCard(sprites, colorSlot(s.sessionId), onConfigChange) }.update(s)
         }
         if (ids != order) {
             order = ids

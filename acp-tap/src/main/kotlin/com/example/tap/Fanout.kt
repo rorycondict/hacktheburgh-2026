@@ -34,6 +34,7 @@ internal class Fanout(
     private val history = ArrayDeque<String>()
     private var historyBytes = 0L
     private val historyLock = Any()
+    private var seq = 0L // guarded by historyLock
     @Volatile private var closed = false
 
     init {
@@ -75,9 +76,10 @@ internal class Fanout(
 
     fun publish(dir: String, line: String) {
         if (line.isBlank()) return
-        val json = Json.frame(dir, System.currentTimeMillis(), line)
-        logQueue.offer(json)
         synchronized(historyLock) {
+            // Numbered under the lock so history, live sends and the log all agree on the order.
+            val json = Json.frame(dir, System.currentTimeMillis(), line, ++seq)
+            logQueue.offer(json)
             history.addLast(json)
             historyBytes += json.length
             while (history.size > 5000 || historyBytes > MAX_HISTORY_BYTES) {

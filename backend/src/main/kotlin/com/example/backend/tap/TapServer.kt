@@ -55,6 +55,8 @@ class TapServer(private val cs: CoroutineScope) : Disposable {
     private val serverId = UUID.randomUUID().toString()
     @Volatile private var serverSocket: ServerSocket? = null
     private val connections = ConcurrentHashMap.newKeySet<TapConnection>()
+    /** Per tap process (by tapId); outlives a connection so a reconnecting tap continues where it left off. */
+    private val tapStates = ConcurrentHashMap<String, TapState>()
     private val injectIds = AtomicLong(0)
 
     val registryFile: File = File(OverworldDirs.servers, "$serverId.properties")
@@ -82,7 +84,8 @@ class TapServer(private val cs: CoroutineScope) : Disposable {
     /** Sends a JSON-RPC request to the agent behind [sessionId]'s tap. False if there is no live tap. */
     fun inject(sessionId: String, method: String, params: JsonObject): Boolean {
         val conn = connections.firstOrNull { sessionId in it.sessions.keys && !it.closed } ?: return false
-        val id = "floorplan-${injectIds.incrementAndGet()}"
+        // One tap fans out to every IDE, so ids must be unique across IDEs, not just within this one.
+        val id = "floorplan-$serverId-${injectIds.incrementAndGet()}"
         val msg = buildJsonObject {
             put("jsonrpc", "2.0")
             put("id", id)
@@ -126,23 +129,33 @@ class TapServer(private val cs: CoroutineScope) : Disposable {
     }
 
     private suspend fun handle(socket: Socket) {
-        val conn = TapConnection(socket)
+        var conn: TapConnection? = null
         try {
-            socket.soTimeout = 0
             val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.UTF_8))
             socket.soTimeout = 5000
             val hello = reader.readLine()?.let(TapLine::parse) as? TapLine.Hello
             if (hello == null || hello.token != token) {
                 LOG.info("Rejected tap connection (bad hello)")
+                socket.close()
                 return
             }
             socket.soTimeout = 0
+            pruneTapStates()
+            // A tap with a known id is reconnecting: reuse its mapper and routing, and skip replayed frames.
+            val state = if (hello.tapId.isBlank()) TapState() else tapStates.getOrPut(hello.tapId) { TapState() }
+            state.lastSeenMillis = System.currentTimeMillis()
+            conn = TapConnection(socket, state)
             conn.agentName = hello.agent
             connections += conn
-            LOG.info("Tap connected: agent=${hello.agent} tapId=${hello.tapId}")
+            LOG.info("Tap connected: agent=${hello.agent} tapId=${hello.tapId} resumeAfter=${state.lastSeq}")
             while (cs.isActive) {
                 val line = reader.readLine() ?: break
                 val frame = TapLine.parse(line) as? TapLine.Frame ?: continue
+                if (frame.seq != null) {
+                    if (frame.seq <= state.lastSeq) continue
+                    state.lastSeq = frame.seq
+                }
+                state.lastSeenMillis = System.currentTimeMillis()
                 val events = try {
                     synchronized(conn.mapper) { conn.mapper.map(frame) }
                 } catch (e: Exception) {
@@ -154,12 +167,22 @@ class TapServer(private val cs: CoroutineScope) : Disposable {
         } catch (e: Exception) {
             LOG.debug("tap connection ended", e)
         } finally {
-            conn.close()
-            connections -= conn
-            for ((sessionId, project) in conn.sessions) {
-                if (!project.isDisposed) project.service<SessionService>().disconnected(sessionId)
+            if (conn == null) {
+                try { socket.close() } catch (_: Exception) {}
+            } else {
+                conn.close()
+                connections -= conn
+                for ((sessionId, project) in conn.sessions) {
+                    if (!project.isDisposed) project.service<SessionService>().disconnected(sessionId)
+                }
             }
         }
+    }
+
+    /** Forgets taps that have been gone for an hour (their process has almost certainly exited). */
+    private fun pruneTapStates() {
+        val cutoff = System.currentTimeMillis() - 60 * 60 * 1000L
+        tapStates.entries.removeIf { (_, s) -> s.lastSeenMillis < cutoff && connections.none { it.state === s } }
     }
 
     private fun route(conn: TapConnection, event: AgentEvent) {
@@ -187,13 +210,22 @@ class TapServer(private val cs: CoroutineScope) : Disposable {
     }
 }
 
-/** One connected tap (one agent process). */
-class TapConnection(private val socket: Socket) {
+/** What the server remembers about one tap process across reconnects. */
+class TapState {
     val mapper = AcpEventMapper()
+    /** Sessions seen from this tap and the project each was routed to. */
+    val sessions = ConcurrentHashMap<String, Project>()
+    /** Highest frame seq already applied; replayed frames at or below it are skipped. */
+    @Volatile var lastSeq = 0L
+    @Volatile var lastSeenMillis = System.currentTimeMillis()
+}
+
+/** One live connection from a tap (one agent process). */
+class TapConnection(private val socket: Socket, val state: TapState) {
+    val mapper: AcpEventMapper get() = state.mapper
     @Volatile var agentName: String = "agent"
     @Volatile var closed = false
-    /** Sessions seen on this connection and the project each was routed to. */
-    val sessions = ConcurrentHashMap<String, Project>()
+    val sessions: ConcurrentHashMap<String, Project> get() = state.sessions
     private val writer = BufferedWriter(OutputStreamWriter(socket.getOutputStream(), Charsets.UTF_8))
     private val injected = ConcurrentHashMap<String, Pair<String, String?>>()
 

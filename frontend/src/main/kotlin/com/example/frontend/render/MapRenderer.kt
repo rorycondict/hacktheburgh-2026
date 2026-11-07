@@ -65,7 +65,7 @@ data class MapHighlights(
  * Pure Java2D drawing of a [WorldDto] and the [Scene]'s agents. No IntelliJ dependencies, so it can be
  * driven headlessly (used to render previews).
  */
-class MapRenderer(private val atlas: Atlas) {
+class MapRenderer(private val sprites: Sprites) {
     private var staticFor: WorldDto? = null
     private var staticLayer: BufferedImage? = null
 
@@ -113,7 +113,7 @@ class MapRenderer(private val atlas: Atlas) {
             val drawables = ArrayList<Drawable>()
             for (f in world.furniture) drawables += Drawable(f.y.toDouble()) {
                 val name = furnitureSprite(f, touched, failed, serverFailed, nowMs)
-                g.drawImage(atlas[name], f.x * T, f.y * T, null)
+                g.drawImage(sprites[name], f.x * T, f.y * T, null)
             }
             for (a in scene.agents.values) drawables += Drawable(a.y + 0.01) { drawAgent(g, scene, a, nowMs) }
             drawables.sortBy { it.sortY }
@@ -141,7 +141,7 @@ class MapRenderer(private val atlas: Atlas) {
             // Icons above heads (pixel art, world space, on top of everything).
             for (a in scene.agents.values) {
                 val icon = iconFor(a, nowMs) ?: continue
-                val img = atlas[icon]
+                val img = sprites[icon]
                 val bob = (sin(nowMs / 220.0 + a.slot) * 1.2).roundToInt()
                 // At furniture, the icon sits beside the head so the furniture state (screen, server LEDs) stays visible.
                 val beside = scene.arrived(a)
@@ -179,13 +179,13 @@ class MapRenderer(private val atlas: Atlas) {
 
         val kind = a.session.activity.kind
         val name = when {
-            a.moving -> atlas.frameName("hero_walk_" + a.facing.name.lowercase(), nowMs + a.slot * 70L)
+            a.moving -> sprites.frameName("hero_walk_" + a.facing.name.lowercase(), nowMs + a.slot * 70L)
             scene.arrived(a) && (kind == ActivityKind.EDIT || kind == ActivityKind.DELETE ||
-                kind == ActivityKind.MOVE || kind == ActivityKind.EXECUTE) -> atlas.frameName("hero_work", nowMs + a.slot * 90L)
+                kind == ActivityKind.MOVE || kind == ActivityKind.EXECUTE) -> sprites.frameName("hero_work", nowMs + a.slot * 90L)
             scene.arrived(a) -> "hero_up_0"
             else -> "hero_" + a.facing.name.lowercase() + "_0"
         }
-        g.drawImage(atlas.tinted(name, AgentColors.tint(a.slot)), px, py, null)
+        g.drawImage(sprites.tinted(name, AgentColors.tint(a.slot)), px, py, null)
     }
 
     private fun drawNameplate(g: Graphics2D, a: Agent, view: Viewport) {
@@ -235,7 +235,7 @@ class MapRenderer(private val atlas: Atlas) {
             FurnitureKind.CABINET -> "obj_cabinet"
             FurnitureKind.TEST_BENCH -> "obj_test_bench"
             FurnitureKind.PLANT -> "obj_plant"
-            FurnitureKind.SERVER -> if (serverFailed) "obj_server_error" else atlas.frameName("obj_server_blink", nowMs)
+            FurnitureKind.SERVER -> if (serverFailed) "obj_server_error" else sprites.frameName("obj_server_blink", nowMs)
         }
 
     /** Files whose most recent tool call (per session) failed, or that the current failed activity targets. */
@@ -273,7 +273,7 @@ class MapRenderer(private val atlas: Atlas) {
         val g = img.createGraphics()
         for (y in 0 until world.height) for (x in 0 until world.width) {
             val name = tileSprite(world.tileAt(x, y)) ?: continue
-            g.drawImage(atlas[name], x * T, y * T, null)
+            g.drawImage(sprites[name], x * T, y * T, null)
         }
         g.dispose()
         staticFor = world

@@ -9,17 +9,19 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class AcpJsonWrapperTest {
+    private companion object { const val SUFFIX = " (Test)" }
+
     private val input = Json.parseToJsonElement(
         """{"agent_servers":{"Junie":{"command":"junie","args":["--acp=true"],"env":{"JUNIE_KEY":"x"}}},"other":1}"""
     ) as JsonObject
 
     @Test
     fun wrapsOnceAndKeepsOriginals() {
-        val first = AcpJsonWrapper.wrap(input, "/jbr/bin/java", "/plugin/tap/acp-tap.jar")
+        val first = AcpJsonWrapper.wrap(input, "/jbr/bin/java", "/plugin/tap/acp-tap.jar", SUFFIX)
         assertEquals(listOf("Junie"), first.wrapped)
         val servers = first.root["agent_servers"] as JsonObject
-        assertEquals(setOf("Junie", "Junie (Floorplan)"), servers.keys)
-        val w = servers["Junie (Floorplan)"] as JsonObject
+        assertEquals(setOf("Junie", "Junie" + SUFFIX), servers.keys)
+        val w = servers["Junie" + SUFFIX] as JsonObject
         assertEquals(JsonPrimitive("/jbr/bin/java"), w["command"])
         assertEquals(
             listOf("-jar", "/plugin/tap/acp-tap.jar", "--name", "Junie", "--", "junie", "--acp=true"),
@@ -29,7 +31,7 @@ class AcpJsonWrapperTest {
         assertEquals(Json.parseToJsonElement("""{"JUNIE_KEY":"x"}"""), w["env"])
         assertEquals(JsonPrimitive(1), first.root["other"])
 
-        val second = AcpJsonWrapper.wrap(first.root, "/jbr/bin/java", "/plugin/tap/acp-tap.jar")
+        val second = AcpJsonWrapper.wrap(first.root, "/jbr/bin/java", "/plugin/tap/acp-tap.jar", SUFFIX)
         assertTrue(second.wrapped.isEmpty())
         assertEquals(listOf("Junie"), second.alreadyWrapped)
         assertEquals(2, (second.root["agent_servers"] as JsonObject).size, "never double-wraps")
@@ -37,7 +39,7 @@ class AcpJsonWrapperTest {
 
     @Test
     fun emptyFile() {
-        val out = AcpJsonWrapper.wrap(JsonObject(emptyMap()), "java", "tap.jar")
+        val out = AcpJsonWrapper.wrap(JsonObject(emptyMap()), "java", "tap.jar", SUFFIX)
         assertEquals(0, out.originals)
         assertTrue(out.wrapped.isEmpty())
     }

@@ -9,7 +9,7 @@ import kotlin.test.assertTrue
 
 class AcpEventMapperTest {
     private fun sample(): List<TapLine.Frame> =
-        javaClass.getResource("/sample-session.jsonl")!!.readText().lines().filter { it.isNotBlank() }.map { TapLine.parse(it) as TapLine.Frame }
+        javaClass.getResource("/floorplan/sample-session.jsonl")!!.readText().lines().filter { it.isNotBlank() }.map { TapLine.parse(it) as TapLine.Frame }
 
     private fun from(line: String) = AcpEventMapper().map(Direction.FROM_AGENT, 1L, line)
 

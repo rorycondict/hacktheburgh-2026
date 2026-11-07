@@ -124,6 +124,8 @@ sealed interface AgentEvent {
         val line: Int?,
         val title: String,
         val chars: Int,
+        /** False for hints that only carry a token count (e.g. a read's response), so they don't change the activity. */
+        val announce: Boolean = true,
     ) : AgentEvent
 
     /** Any `sessionUpdate` starting with `_`. */

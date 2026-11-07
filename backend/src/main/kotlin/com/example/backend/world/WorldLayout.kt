@@ -17,7 +17,8 @@ data class Summaries(val rooms: Map<String, String> = emptyMap(), val files: Map
  * its input (files are sorted by path; no randomness).
  */
 object WorldLayout {
-    const val LOBBY_ID = "lobby"
+    /** "/" (the project root) can never collide with a directory room, whose id is a top-level dir name. */
+    const val LOBBY_ID = "/"
     const val MAX_FURNITURE = 12
     private const val MAX_ROW_WIDTH = 64
     private const val ROOM_X0 = 3          // x=0 border wall, x=1..2 vertical corridor

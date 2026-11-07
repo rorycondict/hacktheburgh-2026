@@ -1,5 +1,6 @@
 package com.example.backend.rpc
 
+import com.example.ModularPluginBackendBundle
 import com.example.backend.acp.AcpEventMapper
 import com.example.backend.llm.OpenAiClient
 import com.example.backend.llm.OpenAiConfig
@@ -70,7 +71,7 @@ class VisualiserRpcApiImpl : VisualiserRpcApi {
             acpJson.absolutePath, emptyList(), emptyList(),
             "Could not locate the plugin's tap/acp-tap.jar; rebuild the plugin (prepareSandbox / buildPlugin).",
         )
-        AcpJsonWrapper.wrapFile(acpJson, java, jar)
+        AcpJsonWrapper.wrapFile(acpJson, java, jar, " (" + ModularPluginBackendBundle.message("product.name") + ")")
     }
 
     override suspend fun startReplay(projectId: ProjectId, logFile: String?): String {

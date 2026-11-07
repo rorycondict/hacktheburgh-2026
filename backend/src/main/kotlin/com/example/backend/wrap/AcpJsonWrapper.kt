@@ -12,13 +12,15 @@ import java.io.File
 
 /** Adds tap-wrapped copies of the agents in `~/.jetbrains/acp.json`. */
 object AcpJsonWrapper {
-    const val SUFFIX = " (Floorplan)"
     private const val SERVERS = "agent_servers"
 
     data class Outcome(val root: JsonObject, val wrapped: List<String>, val alreadyWrapped: List<String>, val originals: Int)
 
-    /** Pure transformation; keeps every original entry and any unknown fields. */
-    fun wrap(root: JsonObject, javaPath: String, tapJar: String): Outcome {
+    /**
+     * Pure transformation; keeps every original entry and any unknown fields.
+     * [suffix] is appended to each wrapped entry's name; the caller derives it from the product name.
+     */
+    fun wrap(root: JsonObject, javaPath: String, tapJar: String, suffix: String): Outcome {
         val servers = (root[SERVERS] as? JsonObject) ?: JsonObject(emptyMap())
         val result = LinkedHashMap<String, JsonElement>(servers)
         val wrapped = ArrayList<String>()
@@ -26,11 +28,11 @@ object AcpJsonWrapper {
         var originals = 0
         for ((name, entry) in servers) {
             val o = entry as? JsonObject ?: continue
-            if (isWrapped(name, o)) continue
+            if (isWrapped(name, o, suffix)) continue
             val command = (o["command"] as? JsonPrimitive)?.contentOrNull ?: continue
             originals++
             val args = (o["args"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }.orEmpty()
-            val wrappedName = name + SUFFIX
+            val wrappedName = name + suffix
             val newEntry = LinkedHashMap<String, JsonElement>(o)
             newEntry["command"] = JsonPrimitive(javaPath)
             newEntry["args"] = JsonArray((listOf("-jar", tapJar, "--name", name, "--", command) + args).map(::JsonPrimitive))
@@ -43,14 +45,15 @@ object AcpJsonWrapper {
         return Outcome(JsonObject(newRoot), wrapped, already, originals)
     }
 
-    fun isWrapped(name: String, entry: JsonObject): Boolean =
-        name.endsWith(SUFFIX) || (entry["args"] as? JsonArray)?.any { (it as? JsonPrimitive)?.contentOrNull?.endsWith("acp-tap.jar") == true } == true
+    /** Also recognised by the tap jar in the args, so entries written under an older product name still count. */
+    fun isWrapped(name: String, entry: JsonObject, suffix: String): Boolean =
+        name.endsWith(suffix) || (entry["args"] as? JsonArray)?.any { (it as? JsonPrimitive)?.contentOrNull?.endsWith("acp-tap.jar") == true } == true
 
     @OptIn(ExperimentalSerializationApi::class)
     private val pretty = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
     /** Reads, backs up, rewrites [acpJson]. */
-    fun wrapFile(acpJson: File, javaPath: String, tapJar: File): WrapResultDto {
+    fun wrapFile(acpJson: File, javaPath: String, tapJar: File, suffix: String): WrapResultDto {
         val path = acpJson.absolutePath
         if (!tapJar.isFile) {
             return WrapResultDto(path, emptyList(), emptyList(), "Tap jar not found at ${tapJar.absolutePath}; rebuild the plugin (prepareSandbox / buildPlugin).")
@@ -63,11 +66,11 @@ object AcpJsonWrapper {
         } catch (e: Exception) {
             return WrapResultDto(path, emptyList(), emptyList(), "Could not parse acp.json (${e.message}); left unchanged.")
         }
-        val out = wrap(root, javaPath, tapJar.absolutePath)
+        val out = wrap(root, javaPath, tapJar.absolutePath, suffix)
         try {
             acpJson.parentFile?.mkdirs()
             val bak = File(acpJson.parentFile, "acp.json.bak")
-            val hadWrapped = (root[SERVERS] as? JsonObject).orEmpty().any { (n, e) -> e is JsonObject && isWrapped(n, e) }
+            val hadWrapped = (root[SERVERS] as? JsonObject).orEmpty().any { (n, e) -> e is JsonObject && isWrapped(n, e, suffix) }
             // Keep the pristine backup from the first wrap; refresh it only while the file is unwrapped.
             if (existed && (!bak.exists() || !hadWrapped)) acpJson.copyTo(bak, overwrite = true)
             if (existed || out.originals > 0) acpJson.writeText(pretty.encodeToString(JsonObject.serializer(), out.root) + "\n")
@@ -77,8 +80,8 @@ object AcpJsonWrapper {
         }
         val message = when {
             out.originals == 0 -> "No custom agents in $path yet. Add one under \"agent_servers\" (e.g. \"Junie\": {\"command\": \"junie\", \"args\": [\"--acp=true\"]}) and run Wrap again."
-            out.wrapped.isEmpty() -> "All ${out.alreadyWrapped.size} agent(s) were already wrapped (paths refreshed). Pick the \"…$SUFFIX\" entries in Air."
-            else -> "Wrapped ${out.wrapped.joinToString()}. Restart Air / the IDE, then pick the \"…$SUFFIX\" entries. Backup: acp.json.bak"
+            out.wrapped.isEmpty() -> "All ${out.alreadyWrapped.size} agent(s) were already wrapped (paths refreshed). Pick the \"…$suffix\" entries in Air."
+            else -> "Wrapped ${out.wrapped.joinToString()}. Restart Air / the IDE, then pick the \"…$suffix\" entries. Backup: acp.json.bak"
         }
         return WrapResultDto(path, out.wrapped, out.alreadyWrapped, message)
     }

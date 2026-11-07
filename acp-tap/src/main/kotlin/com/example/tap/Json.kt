@@ -25,8 +25,9 @@ internal object Json {
         return sb.toString()
     }
 
-    fun frame(dir: String, ts: Long, line: String): String =
-        "{\"type\":\"frame\",\"dir\":\"$dir\",\"ts\":$ts,\"line\":${quote(line)}}"
+    /** [seq] increases by one per frame for the tap's lifetime, so a server can skip frames replayed on reconnect. */
+    fun frame(dir: String, ts: Long, line: String, seq: Long): String =
+        "{\"type\":\"frame\",\"seq\":$seq,\"dir\":\"$dir\",\"ts\":$ts,\"line\":${quote(line)}}"
 
     fun hello(token: String, agent: String, tapId: String, pid: Long): String =
         "{\"type\":\"hello\",\"token\":${quote(token)},\"agent\":${quote(agent)},\"tapId\":${quote(tapId)},\"pid\":$pid}"

@@ -6,7 +6,7 @@ import com.example.frontend.Notifier
 import com.example.frontend.VisualiserFrontendService
 import com.example.frontend.hud.AskPanel
 import com.example.frontend.hud.HudPanel
-import com.example.frontend.render.Atlas
+import com.example.frontend.render.Sprites
 import com.example.frontend.render.MapComponent
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
@@ -33,13 +33,16 @@ import javax.swing.ScrollPaneConstants
 internal class VisualiserPanel(private val project: Project, parentDisposable: Disposable) : SimpleToolWindowPanel(false, true) {
     private val service = VisualiserFrontendService.getInstance(project)
     private val scope = CoroutineScopeHolder.getInstance(project).createScope(VisualiserPanel::class.java.simpleName)
-    private val atlas = Atlas.loadFromClasspath(VisualiserPanel::class.java)
-    private val map = MapComponent(atlas, service::colorSlot)
-    private val hud = HudPanel(atlas, service::colorSlot, ::changeConfig)
+    private val sprites = Sprites(VisualiserPanel::class.java)
+    private val map = MapComponent(sprites, service::colorSlot)
+    private val hud = HudPanel(sprites, service::colorSlot, ::changeConfig)
     private val ask = AskPanel(::ask)
 
     init {
-        if (atlas.isEmpty) thisLogger().warn("Sprite atlas /floorplan/atlas.json could not be loaded", Atlas.loadError)
+        sprites["hero_down_0"]
+        if ("hero_down_0" in sprites.missing) {
+            thisLogger().warn("Sprites not found under /floorplan/sprites/: check that the frontend build copies assets/*.png")
+        }
         Disposer.register(parentDisposable, map)
         Disposer.register(parentDisposable) { scope.cancel() }
 

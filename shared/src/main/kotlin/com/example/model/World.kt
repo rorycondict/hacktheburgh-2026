@@ -67,7 +67,7 @@ fun WorldDto.isWalkable(x: Int, y: Int): Boolean = Tiles.isWalkable(tileAt(x, y)
 /** A room (directory) in the house. */
 @Serializable
 data class RoomDto(
-    /** Stable: the room's project-relative dir, or "lobby". */
+    /** Stable: the room's project-relative dir, or "/" for the lobby (project root). */
     val id: String,
     /** Display name, e.g. "backend". */
     val name: String,

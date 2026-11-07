@@ -12,6 +12,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 
 /** Per-project session state, fed by the tap server and by replays. */
@@ -40,7 +41,10 @@ class SessionService(project: Project, private val cs: CoroutineScope) {
             removals[sessionId]?.cancel()
             removals[sessionId] = cs.launch {
                 delay(120_000)
+                val self = coroutineContext.job
                 synchronized(lock) {
+                    // apply() may have revived the session while we waited for the lock; cancel() can't stop us here.
+                    if (removals[sessionId] !== self) return@synchronized
                     reducer.remove(sessionId)
                     removals.remove(sessionId)
                     scheduleEmit()

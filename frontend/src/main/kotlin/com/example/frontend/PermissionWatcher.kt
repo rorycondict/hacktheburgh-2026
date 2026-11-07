@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Shows one balloon per permission request (keyed by toolCallId), even if the tool window is closed. */
+/** Shows one balloon per permission request when it first becomes pending, even if the tool window is closed. */
 internal class PermissionWatcher : ProjectActivity {
     override suspend fun execute(project: Project) {
         // Collect in a project-lifetime scope so this startup activity returns immediately.
@@ -22,12 +22,13 @@ internal class PermissionWatcher : ProjectActivity {
     }
 
     private suspend fun watch(project: Project) {
-        val seen = HashSet<String>()
+        // Keyed per session: toolCallIds can repeat across agents (call_1) or be blank.
+        var pendingBefore = emptySet<String>()
         VisualiserFrontendService.getInstance(project).sessions.collect { sessions ->
-            val fresh = sessions.mapNotNull { s -> s.pendingPermission?.let { s to it } }
-                .filter { (_, p) -> seen.add(p.toolCallId) }
+            val pending = sessions.mapNotNull { s -> s.pendingPermission?.let { p -> "${s.sessionId}\u0000${p.toolCallId}\u0000${p.title}" to (s to p) } }
+            val fresh = pending.filter { (key, _) -> key !in pendingBefore }.map { it.second }
+            pendingBefore = pending.mapTo(HashSet()) { it.first }
             if (fresh.isNotEmpty()) withContext(Dispatchers.EDT) { fresh.forEach { (s, p) -> notify(project, s, p.title) } }
-            if (seen.size > 500) seen.clear()
         }
     }
 

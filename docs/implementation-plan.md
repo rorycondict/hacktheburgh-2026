@@ -35,7 +35,7 @@ P0 = needed for the demo loop. P1 = do it if P0 is done.
 | 12 | Replay of a raw tap log through the same mapper (demo safety) | F18, R7 | backend | P1 |
 | 13 | `setConfigOption` via tap `INJECT` of `session/set_config_option` | F11 | backend | P1 |
 | 14 | `ask` about a file or room (LLM with code as context) | F10 | backend | P1 |
-| 15 | Placeholder sprites under `assets/` (interior set, names below), compiled with `tools/sprite-compiler`; frontend build copies the atlas into resources | T5 | frontend | P0 |
+| 15 | Sprites as flat PNGs in `assets/` (interior set, names below); the frontend build copies them into resources | T5 | frontend | P0 |
 | 16 | Remove the chat sample; frontend project service exposing `world` / `sessions` as `StateFlow` (`durable {}`) | — | frontend | P0 |
 | 17 | Java2D map renderer in the tool window: tiles, furniture, room labels, integer nearest-neighbour scaling | F2 | frontend | P0 |
 | 18 | Characters: one per session, palette-swapped; BFS pathing on walkable tiles; walk to the file's furniture; activity icons | F2, F8, F14 | frontend | P0 |
@@ -94,7 +94,7 @@ object Tiles {
 )
 
 @Serializable data class RoomDto(
-    val id: String,                 // stable: the room's project-relative dir, or "lobby"
+    val id: String,                 // stable: the room's project-relative dir, or "/" for the lobby
     val name: String,               // display name, e.g. "backend"
     val path: String,               // project-relative dir with '/' separators; "" for the lobby
     val summary: String,
@@ -246,11 +246,11 @@ Target lookup: furniture whose `path` equals `activity.path`. If there isn't one
 
 Desks show `obj_desk_off` unless the file is in `touchedFiles` (`obj_desk`) or the agent's last tool call on it failed (`obj_desk_error`).
 
-## Sprite names (frontend creates placeholders; 16×16 unless noted)
+## Sprite names (one PNG each in `assets/`, e.g. `assets/obj_desk.png`; 16×16 unless noted)
 
 - Tiles: `tile_wall_top`, `tile_wall_face`, `tile_door`, `tile_corridor`, `tile_floor_wood`, `tile_floor_tile`, `tile_floor_carpet`
 - Furniture: `obj_desk`, `obj_desk_off`, `obj_desk_error`, `obj_bookshelf`, `obj_cabinet`, `obj_test_bench`, `obj_plant`, `obj_server_0`, `obj_server_1`, `obj_server_error`
-- Character (chibi, head ~10 of 16 rows): `hero_{down,up,right,left}_{0,1}`, `hero_{down,up}_2`, `hero_work_0`, `hero_work_1`. The tunic uses palette keys `u`/`B` so the renderer can swap them per agent.
+- Character (chibi, head ~10 of 16 rows): `hero_{down,up,right,left}_{0,1}`, `hero_{down,up}_2`, `hero_work_0`, `hero_work_1`. The tunic uses exactly `#3d72d6` / `#26498f` so the renderer can swap them per agent.
 - Icons (≤ 16 wide): `icon_alert`, `icon_thought`, `icon_read`, `icon_edit`, `icon_search`, `icon_execute`, `icon_fetch`, `icon_failed`, `icon_idle`
 - Animations: `hero_walk_{down,up,left,right}`, `hero_work`, `obj_server_blink`
 

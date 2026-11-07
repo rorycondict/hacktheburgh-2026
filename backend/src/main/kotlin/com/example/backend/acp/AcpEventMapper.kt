@@ -16,7 +16,8 @@ enum class Direction { TO_AGENT, FROM_AGENT }
 /** One line of the tap wire protocol / raw log. */
 sealed interface TapLine {
     data class Hello(val token: String, val agent: String, val tapId: String, val pid: Long?) : TapLine
-    data class Frame(val dir: Direction, val ts: Long, val line: String) : TapLine
+    /** [seq] is the tap's frame number (null in old logs); servers use it to skip frames replayed on reconnect. */
+    data class Frame(val dir: Direction, val ts: Long, val line: String, val seq: Long? = null) : TapLine
 
     companion object {
         private val json = Json { ignoreUnknownKeys = true; isLenient = true }
@@ -33,7 +34,7 @@ sealed interface TapLine {
                         else -> null
                     }
                     val line = o.str("line")
-                    if (dir == null || line == null) null else Frame(dir, o.long("ts") ?: System.currentTimeMillis(), line)
+                    if (dir == null || line == null) null else Frame(dir, o.long("ts") ?: System.currentTimeMillis(), line, o.long("seq"))
                 }
                 else -> null
             }
@@ -212,7 +213,7 @@ class AcpEventMapper {
             }
             "fs/read_text_file" -> {
                 val n = r?.str("content")?.length ?: 0
-                if (n > 0) listOf(AgentEvent.FileHint(sessionId, ts, HintKind.READ, p.str("path"), p.int("line"), "Read ${fileName(p.str("path"))}", n))
+                if (n > 0) listOf(AgentEvent.FileHint(sessionId, ts, HintKind.READ, p.str("path"), p.int("line"), "Read ${fileName(p.str("path"))}", n, announce = false))
                 else emptyList()
             }
             else -> emptyList()
@@ -249,7 +250,8 @@ class AcpEventMapper {
                     title = u.str("title"),
                     status = u.str("status"),
                     locations = u["locations"]?.let(::locations),
-                    chars = size(u["rawInput"]) + size(u["content"]) + size(u["rawOutput"]),
+                    // Updates usually repeat or replace earlier fields; the reducer keeps a per-call high-water mark.
+                    chars = size(u["content"]) + size(u["rawOutput"]),
                 )
             )
             "plan", "plan_update" -> {

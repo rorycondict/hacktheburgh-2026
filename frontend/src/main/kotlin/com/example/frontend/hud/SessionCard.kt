@@ -1,7 +1,7 @@
 package com.example.frontend.hud
 
 import com.example.frontend.render.AgentColors
-import com.example.frontend.render.Atlas
+import com.example.frontend.render.Sprites
 import com.example.model.ConfigOptionDto
 import com.example.model.ConfigValueDto
 import com.example.model.SessionDto
@@ -27,7 +27,7 @@ import javax.swing.JProgressBar
 
 /** HUD card for one agent session. Updated in place so open combo popups survive refreshes. */
 internal class SessionCard(
-    private val atlas: Atlas,
+    private val sprites: Sprites,
     private val slot: Int,
     private val onConfigChange: (sessionId: String, configId: String, value: String) -> Unit,
 ) : JPanel() {
@@ -184,7 +184,7 @@ internal class SessionCard(
     }
 
     private fun headIcon(): ImageIcon {
-        val src = atlas.tinted("hero_down_0", AgentColors.tint(slot))
+        val src = sprites.tinted("hero_down_0", AgentColors.tint(slot))
         val size = JBUI.scale(2) * 16
         val img = BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
         val g = img.createGraphics()
