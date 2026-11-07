@@ -8,6 +8,7 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.ContentFactory
 import com.example.CoroutineScopeHolder
 import com.example.chatApp.ChatAppSample
+import com.example.chatApp.ui.DrawingCanvas
 import com.example.chatApp.viewmodel.ChatViewModel
 import com.example.chatApp.viewmodel.FrontendChatRepositoryModel
 
@@ -25,8 +26,8 @@ class ModularPluginToolWindowFactory : ToolWindowFactory, DumbAware {
         )
         Disposer.register(toolWindow.disposable, viewModel)
 
-        val chatPanel = ChatAppSample(viewModel, project)
-        val content = ContentFactory.getInstance().createContent(chatPanel, "Chat App", false)
-        toolWindow.contentManager.addContent(content)
+        val canvas = DrawingCanvas()
+        val canvasContent = ContentFactory.getInstance().createContent(canvas, "", false)
+        toolWindow.contentManager.addContent(canvasContent)
     }
 }
