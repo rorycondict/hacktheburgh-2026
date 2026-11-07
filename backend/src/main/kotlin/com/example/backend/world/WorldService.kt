@@ -63,9 +63,31 @@ class WorldService(private val project: Project, private val cs: CoroutineScope)
         lastIndex?.let(::publish)
     }
 
+    /** Re-lays out the last index after the agent changed the floorplan (no re-index). */
+    fun planChanged() {
+        lastIndex?.let(::publish)
+    }
+
     private fun publish(idx: IndexResult) {
+        _world.value = layout(idx)
+    }
+
+    /** The agent's plan if there is one, else the automatic, role-based layout. */
+    fun layout(idx: IndexResult): WorldDto {
         val summaries = project.service<SummaryService>().current()
-        _world.value = WorldLayout.build(idx.files, idx.revision, summaries)
+        val plan = project.service<FloorplanPlanService>().plan
+        return if (plan != null && plan.rooms.isNotEmpty()) {
+            WorldLayout.build(plan.rooms, idx.files, idx.revision, summaries, System.currentTimeMillis(), idx.deps, curated = true)
+        } else {
+            WorldLayout.build(idx.files, idx.revision, summaries, deps = idx.deps)
+        }
+    }
+
+    /** Waits for the current build (if any) and returns the latest index, indexing now if there is none. */
+    suspend fun index(): IndexResult {
+        buildJob?.join()
+        lastIndex?.let { return it }
+        return ProjectIndexer.index(project).also { lastIndex = it; publish(it) }
     }
 
     private fun scheduleRebuild(delayMs: Long): Unit = synchronized(lock) {

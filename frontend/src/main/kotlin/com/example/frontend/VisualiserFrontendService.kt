@@ -40,6 +40,13 @@ class VisualiserFrontendService(private val project: Project, scope: CoroutineSc
         }
     }.stateIn(scope, SharingStarted.Lazily, emptyList())
 
+    /** The file selected in the user's editor (project-relative), shown on the map as the user's character. */
+    val userPosition: StateFlow<String?> = flow {
+        durable {
+            VisualiserRpcApi.getInstance().userPosition(project.projectId()).collect { emit(it) }
+        }
+    }.stateIn(scope, SharingStarted.Lazily, null)
+
     /** Stable colour slot per session id, shared by the map and the HUD. */
     private val colorSlots = ConcurrentHashMap<String, Int>()
     private val nextSlot = AtomicInteger()

@@ -47,7 +47,8 @@ The root `build.gradle.kts` applies the `rpc`, serialization and `intellij.platf
 
 - **`acp-tap`** is a separate plain-JVM app that depends only on kotlin-stdlib. Air launches it via `~/.jetbrains/acp.json`, it wraps the real agent, and it streams raw frames to every IDE listed in `~/.overworld/servers/`.
 - **Event path:** tap → backend `TapServer` (TCP) → `AcpEventMapper` → `SessionReducer` / `SessionService` (project service, `StateFlow<List<SessionDto>>`) → `VisualiserRpcApi.sessions` → frontend `VisualiserFrontendService` → renderer and HUD.
-- **World path:** `ProjectIndexer` + `WorldLayout` → `VisualiserRpcApi.world`.
+- **World path:** `ProjectIndexer` (+ `DependencyScanner`) → room plan → `WorldLayout` → `VisualiserRpcApi.world`. The room plan is the agent's, if it designed one through the MCP tools in `backend/.../mcp/FloorplanToolset.kt` (served by the IDE's bundled MCP server, `com.intellij.mcpServer`; persisted by `FloorplanPlanService` in `.overworld/floorplan.json`). Otherwise `HeuristicPlanner` groups files into rooms by role. Rooms have a `RoomKind`, and `RoomThemes` maps each kind to its floor, furniture set and decor. Related rooms are placed next to each other and share a door.
+- **User path:** `UserPositionService` (selected editor file) → `VisualiserRpcApi.userPosition` → `Scene.setUserPath` (the "You" character).
 - The tap wire protocol is in the plan.
 
 ### RPC data flow (pattern to copy for new features)

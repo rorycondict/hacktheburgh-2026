@@ -11,8 +11,10 @@
     <vendor>irn_bru (HackTheBurgh 2026)</vendor>
 
     <description><![CDATA[
-        See what your AI agents are doing. Floorplan draws the open project as a pixel-art house:
-        one room per module, and furniture for its main files. Each agent running in JetBrains Air
+        See what your AI agents are doing. Floorplan draws the open project as a cozy pixel-art house:
+        themed rooms for each aspect of the code (a kitchen for factories, a living room for entry points,
+        a lab for tests...) and labelled furniture for its main files. Your agent can design the house
+        itself through the floorplan MCP tools. Each agent running in JetBrains Air
         is a character that walks to the files it reads and edits.<br><br>
         A heads-up display (HUD) shows the agent's model, effort, tokens, context usage and cost,
         plus its plan as a quest log. Use <b>Wrap my agents</b> once so that Air runs its agents

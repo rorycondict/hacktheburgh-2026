@@ -44,4 +44,10 @@ interface VisualiserRpcApi : RemoteApi<Unit> {
 
     /** Current tap server status. */
     suspend fun status(): TapStatusDto
+
+    /**
+     * Where the human user is in the code: the file selected in their editor, project-relative with '/'
+     * separators (absolute if outside the project), or null when no file is open.
+     */
+    suspend fun userPosition(projectId: ProjectId): Flow<String?>
 }

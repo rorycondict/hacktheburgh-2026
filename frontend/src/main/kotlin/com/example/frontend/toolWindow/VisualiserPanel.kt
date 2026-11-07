@@ -46,12 +46,13 @@ internal class VisualiserPanel(private val project: Project, parentDisposable: D
         Disposer.register(parentDisposable, map)
         Disposer.register(parentDisposable) { scope.cancel() }
 
+        // Ask box on top so its input is always visible, whatever the tool window height; the HUD scrolls below it.
         val right = JPanel(BorderLayout()).apply {
+            add(ask.apply { border = JBUI.Borders.compound(JBUI.Borders.customLineBottom(JBUI.CurrentTheme.ToolWindow.borderColor()), border) }, BorderLayout.NORTH)
             add(JBScrollPane(hud).apply {
                 horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
                 border = JBUI.Borders.empty()
             }, BorderLayout.CENTER)
-            add(ask, BorderLayout.SOUTH)
         }
         val splitter = OnePixelSplitter(false, 0.68f).apply {
             firstComponent = map
@@ -59,7 +60,7 @@ internal class VisualiserPanel(private val project: Project, parentDisposable: D
         }
         setContent(splitter)
 
-        val group = DefaultActionGroup(WrapAgentsAction(), RebuildMapAction(), ReplayLastSessionAction(), TapStatusAction())
+        val group = DefaultActionGroup(WrapAgentsAction(), DesignMapPromptAction(), RebuildMapAction(), ReplayLastSessionAction(), TapStatusAction())
         val toolbar = ActionManager.getInstance().createActionToolbar("AgentVisualiserToolbar", group, true)
         toolbar.targetComponent = this
         setToolbar(toolbar.component)
@@ -87,6 +88,9 @@ internal class VisualiserPanel(private val project: Project, parentDisposable: D
 
         scope.launch(Dispatchers.EDT) {
             service.world.collect { map.setWorld(it) }
+        }
+        scope.launch(Dispatchers.EDT) {
+            service.userPosition.collect { map.setUserPath(it) }
         }
         scope.launch(Dispatchers.EDT) {
             service.sessions.collect { sessions ->

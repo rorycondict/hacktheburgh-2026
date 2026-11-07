@@ -3,6 +3,8 @@ dependencies {
         bundledModule("intellij.platform.kernel.backend")
         bundledModule("intellij.platform.rpc.backend")
         bundledModule("intellij.platform.backend")
+        // The IDE's built-in MCP server: we contribute the floorplan_* tools the agent uses to design the map.
+        bundledPlugin("com.intellij.mcpServer")
     }
 
     implementation(project(":shared"))

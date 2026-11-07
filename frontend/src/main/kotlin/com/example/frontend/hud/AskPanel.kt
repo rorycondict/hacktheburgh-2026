@@ -23,6 +23,8 @@ internal class AskPanel(
         lineWrap = true
         wrapStyleWord = true
     }
+    /** Hidden until the first question, so the input row stays near the top and always visible. */
+    private val answerScroll = JBScrollPane(answer).apply { isVisible = false }
     private var path: String? = null
 
     init {
@@ -35,7 +37,7 @@ internal class AskPanel(
         }
         add(target, BorderLayout.NORTH)
         add(row, BorderLayout.CENTER)
-        add(JBScrollPane(answer), BorderLayout.SOUTH)
+        add(answerScroll, BorderLayout.SOUTH)
         button.addActionListener { submit() }
         field.addActionListener { submit() }
         setTarget(null, null)
@@ -55,6 +57,10 @@ internal class AskPanel(
         if (q.isEmpty()) return
         button.isEnabled = false
         answer.text = "…"
+        if (!answerScroll.isVisible) {
+            answerScroll.isVisible = true
+            revalidate()
+        }
         onAsk(p, q) { result ->
             answer.text = result
             answer.caretPosition = 0

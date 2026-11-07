@@ -20,7 +20,8 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 
-data class IndexResult(val files: List<FileInfo>, val revision: String)
+/** [deps]: file path -> paths it refers to (see [DependencyScanner]). */
+data class IndexResult(val files: List<FileInfo>, val revision: String, val deps: Map<String, Set<String>> = emptyMap())
 
 /** Walks project content: LOC, language and git churn per file. */
 object ProjectIndexer {
@@ -49,7 +50,8 @@ object ProjectIndexer {
             val churn = GitInfo.churn(root)
             val revision = GitInfo.head(root)
             val files = walk(root, excluded, churn)
-            IndexResult(files, revision)
+            val deps = try { DependencyScanner.scan(root, files) } catch (e: Exception) { LOG.debug(e); emptyMap() }
+            IndexResult(files, revision, deps)
         }
     }
 

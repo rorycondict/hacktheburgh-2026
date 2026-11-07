@@ -41,7 +41,7 @@ object Heuristics {
             FurnitureKind.CABINET -> "${f.language.ifBlank { "Config" }} config/build file"
             FurnitureKind.TEST_BENCH -> "${f.language.ifBlank { "" }} tests".trim()
             FurnitureKind.PLANT -> f.language.ifBlank { "Asset" }
-            FurnitureKind.SERVER -> "Server"
+            else -> "Server"
         }
         val churn = if (f.churn > 0) ", ${f.churn} commit${s(f.churn)} in 30 days" else ""
         return "$what, ${f.loc} line${s(f.loc)}$churn"

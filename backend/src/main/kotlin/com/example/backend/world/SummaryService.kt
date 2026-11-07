@@ -76,11 +76,11 @@ class SummaryService(private val project: Project, private val cs: CoroutineScop
     private fun cacheKey(idx: IndexResult): String =
         idx.revision.ifBlank { "nogit-" + idx.files.map { it.path }.sorted().hashCode().toUInt().toString(16) }
 
-    /** room id -> (name, files) */
+    /** room id -> files, for the automatic layout (agent-designed rooms bring their own summaries). */
     private fun roomInputs(idx: IndexResult): Map<String, List<FileInfo>> {
+        val byPath = idx.files.associateBy { it.path }
         val out = LinkedHashMap<String, List<FileInfo>>()
-        out[WorldLayout.LOBBY_ID] = idx.files.filter { !it.path.contains('/') }
-        idx.files.filter { it.path.contains('/') }.groupBy { it.path.substringBefore('/') }.toSortedMap().forEach { (k, v) -> out[k] = v }
+        for (r in HeuristicPlanner.plan(idx.files)) out[r.id] = r.files.mapNotNull { byPath[it] }
         return out
     }
 
@@ -88,7 +88,7 @@ class SummaryService(private val project: Project, private val cs: CoroutineScop
         val base = project.basePath ?: return emptyMap()
         val sb = StringBuilder()
         for ((id, files) in roomInputs(idx)) {
-            sb.append("## room `").append(id).append("` (").append(if (id == WorldLayout.LOBBY_ID) "project root files" else "directory $id/")
+            sb.append("## room `").append(id).append("` (").append(if (id == WorldLayout.LOBBY_ID) "project root files" else "files grouped by role")
                 .append(", ").append(files.size).append(" files, ").append(files.sumOf { it.loc }).append(" lines)\n")
             val top = files.sortedByDescending { it.loc + it.churn * 20 }.take(15)
             for (f in top) sb.append("- ").append(f.path).append(" (").append(f.language.ifBlank { "?" }).append(", ").append(f.loc).append(" lines)\n")

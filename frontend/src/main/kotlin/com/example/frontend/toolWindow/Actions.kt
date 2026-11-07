@@ -6,11 +6,13 @@ import com.example.frontend.Notifier
 import com.example.frontend.VisualiserFrontendService
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.text.StringUtil
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import java.awt.datatransfer.StringSelection
 import javax.swing.Icon
 
 /** Base for toolbar actions that make one backend call and report the result as a balloon. */
@@ -66,5 +68,16 @@ internal class TapStatusAction : BackendAction("action.status.text", "action.sta
     override suspend fun run(project: Project, service: VisualiserFrontendService) {
         val s = service.status()
         Notifier.info(project, FrontendBundle.message("status.message", s.port.toString(), s.connectedTaps.toString(), esc(s.registryFile), esc(s.logsDir)))
+    }
+}
+
+/** Copies a prompt that asks the agent to design the map through the floorplan_* MCP tools. */
+internal class DesignMapPromptAction : DumbAwareAction(
+    FrontendBundle.message("action.design.text"), FrontendBundle.message("action.design.description"), AllIcons.Actions.Lightning,
+) {
+    override fun actionPerformed(e: AnActionEvent) {
+        val project = e.project ?: return
+        CopyPasteManager.getInstance().setContents(StringSelection(FrontendBundle.message("design.prompt")))
+        Notifier.info(project, FrontendBundle.message("design.copied"))
     }
 }

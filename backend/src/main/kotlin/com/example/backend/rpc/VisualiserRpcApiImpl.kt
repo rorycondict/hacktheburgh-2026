@@ -8,6 +8,7 @@ import com.example.backend.replay.ReplayService
 import com.example.backend.session.PathUtil
 import com.example.backend.session.SessionService
 import com.example.backend.tap.TapServer
+import com.example.backend.user.UserPositionService
 import com.example.backend.world.FileKinds
 import com.example.backend.world.WorldService
 import com.example.backend.wrap.AcpJsonWrapper
@@ -46,6 +47,11 @@ class VisualiserRpcApiImpl : VisualiserRpcApi {
         val project = projectId.findProjectOrNull() ?: return emptyFlow()
         TapServer.getInstance().ensureStarted()
         return SessionService.getInstance(project).sessions
+    }
+
+    override suspend fun userPosition(projectId: ProjectId): Flow<String?> {
+        val project = projectId.findProjectOrNull() ?: return emptyFlow()
+        return UserPositionService.getInstance(project).also { it.ensureStarted() }.path
     }
 
     override suspend fun rebuildWorld(projectId: ProjectId) {
