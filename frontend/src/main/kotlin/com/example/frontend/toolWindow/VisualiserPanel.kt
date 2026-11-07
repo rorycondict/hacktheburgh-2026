@@ -68,11 +68,28 @@ internal class VisualiserPanel(private val project: Project, parentDisposable: D
         map.emptyText = FrontendBundle.message("map.loading")
         map.onFurnitureClicked = { f ->
             map.selectedPath = f.path.ifEmpty { null }
-            if (f.path.isNotEmpty()) {
-                ask.setTarget(f.path, f.path)
+            // Dependency-library shelves stand for libraries, not files: open the build file that declares them.
+            val open = f.path.ifEmpty { f.libraries.firstNotNullOfOrNull { it.declaredIn.ifBlank { null } } ?: "" }
+            if (open.isNotEmpty()) {
+                ask.setTarget(open, if (f.path.isEmpty()) "${f.label} ($open)" else open)
                 scope.launch {
                     try {
-                        service.openFile(f.path, null)
+                        service.openFile(open, null)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Throwable) {
+                        Notifier.error(project, "Open file", e)
+                    }
+                }
+            }
+        }
+        map.onBookClicked = { _, lib ->
+            map.selectedPath = null
+            if (lib.declaredIn.isNotEmpty()) {
+                ask.setTarget(lib.declaredIn, "${lib.name} (${lib.declaredIn})")
+                scope.launch {
+                    try {
+                        service.openFile(lib.declaredIn, lib.line.takeIf { it > 0 })
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Throwable) {

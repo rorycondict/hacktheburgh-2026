@@ -3,6 +3,7 @@ package com.example.backend.world
 import com.example.model.FurnitureDto
 import com.example.model.FurnitureKind
 import com.example.model.LevelDto
+import com.example.model.LibraryDto
 import com.example.model.RoomDto
 import com.example.model.RoomKind
 import com.example.model.StairsDto
@@ -25,6 +26,8 @@ data class Summaries(val rooms: Map<String, String> = emptyMap(), val files: Map
 object WorldLayout {
     /** "/" (the project root) can never collide with another room id, which all start with "room:" or "hall:". */
     const val LOBBY_ID = "/"
+    /** Id of the generated dependency library room. */
+    const val LIBRARIES_ID = "libs:"
     const val MAX_FURNITURE = 12
     private const val HALL_H = 3              // hallway floor rows
     private const val LEVEL_GAP = 3           // void rows between levels in the grid
@@ -37,6 +40,7 @@ object WorldLayout {
         setOf(RoomKind.KITCHEN, RoomKind.DINING_ROOM),
         setOf(RoomKind.LIVING_ROOM, RoomKind.DINING_ROOM),
         setOf(RoomKind.STUDY, RoomKind.LIBRARY),
+        setOf(RoomKind.LIBRARY, RoomKind.DEPENDENCIES),
         setOf(RoomKind.BEDROOM, RoomKind.STUDY),
         setOf(RoomKind.LAB, RoomKind.UTILITY_ROOM),
     )
@@ -73,11 +77,14 @@ object WorldLayout {
         summaries: Summaries = Summaries(),
         generatedAtMillis: Long = System.currentTimeMillis(),
         deps: Map<String, Set<String>> = emptyMap(),
-    ): WorldDto = build(HeuristicPlanner.plan(files), files, revision, summaries, generatedAtMillis, deps, curated = false)
+        libraries: List<LibraryDto> = emptyList(),
+    ): WorldDto = build(HeuristicPlanner.plan(files), files, revision, summaries, generatedAtMillis, deps, curated = false, libraries)
 
     /**
      * @param curated true when [rooms] came from the agent: file order and labels are kept as given.
      * @param deps file path -> paths it refers to (see [DependencyScanner]).
+     * @param libraries third-party libraries (see [LibraryScanner]); when there are any, the house gets a
+     *   [RoomKind.DEPENDENCIES] room upstairs whose bookcases hold one book per library.
      */
     fun build(
         rooms: List<RoomSpec>,
@@ -87,6 +94,7 @@ object WorldLayout {
         generatedAtMillis: Long,
         deps: Map<String, Set<String>>,
         curated: Boolean,
+        libraries: List<LibraryDto> = emptyList(),
     ): WorldDto {
         val byPath = files.associateBy { it.path }
         // The entrance hall always exists (spawn + server rack); agent LOBBY rooms merge into it.
@@ -100,7 +108,13 @@ object WorldLayout {
             connectedTo = lobbySpecs.flatMap { it.connectedTo },
         )
         val others = rooms.filter { it.kind != RoomKind.LOBBY }
-            .map { if (it.kind == RoomKind.HALLWAY) it.copy(kind = RoomKind.WORKSHOP) else it }
+            .map {
+                when (it.kind) {
+                    RoomKind.HALLWAY -> it.copy(kind = RoomKind.WORKSHOP)
+                    RoomKind.DEPENDENCIES -> it.copy(kind = RoomKind.LIBRARY)   // generated only, never from a plan
+                    else -> it
+                }
+            }
             .let { list -> if (curated) list else list.sortedBy { it.id } }
             .distinctBy { it.id }
 
@@ -134,7 +148,7 @@ object WorldLayout {
             return RoomPlan(id, spec, all, items, path, level)
         }
         val lobbyPlan = plan(lobby)
-        val otherPlans = others.map { plan(it) }.filter { it.allFiles.isNotEmpty() || curated }
+        val otherPlans = others.map { plan(it) }.filter { it.allFiles.isNotEmpty() || curated } + listOfNotNull(libraryPlan(libraries))
         val links = relations(listOf(lobbyPlan) + otherPlans, deps)
 
         // Floors: ground always; upstairs / basement only if they have rooms.
@@ -288,6 +302,20 @@ object WorldLayout {
                         terminal = access
                         FurnitureDto("", p.id, FurnitureKind.SERVER, fx, fy, access, 0, "", 0, "Server rack: commands run here", pl.item.label, w = pc.w, h = pc.h, blocking = pc.blocking)
                     }
+                    f == null && pl.item.libraries.isNotEmpty() -> FurnitureDto(
+                        path = "",
+                        roomId = p.id,
+                        kind = pl.item.kind,
+                        x = fx, y = fy,
+                        access = access,
+                        loc = 0,
+                        language = pl.item.libraries.map { it.ecosystem }.distinct().joinToString(", "),
+                        churn = 0,
+                        summary = LibraryShelves.summary(pl.item.libraries),
+                        label = pl.item.label,
+                        w = pc.w, h = pc.h, blocking = pc.blocking,
+                        libraries = pl.item.libraries,
+                    )
                     f == null -> FurnitureDto("", p.id, pl.item.kind, fx, fy, access, 0, "", 0, "", "", decor = true, w = pc.w, h = pc.h, blocking = pc.blocking)
                     else -> FurnitureDto(
                         path = f.path,
@@ -318,7 +346,21 @@ object WorldLayout {
             generatedAtMillis = generatedAtMillis,
             levels = levels.map { LevelDto(it.index, LEVEL_NAMES.getValue(it.index), 0, it.y, it.width, it.height) },
             stairs = stairs,
+            libraries = libraries,
         )
+    }
+
+    /** The dependency library: bookcases whose books are the libraries, plus reading-room decor. Null if there are none. */
+    private fun libraryPlan(libraries: List<LibraryDto>): RoomPlan? {
+        if (libraries.isEmpty()) return null
+        val kind = RoomKind.DEPENDENCIES
+        val spec = RoomSpec(kind.label, kind, emptyList(), summary = LibraryShelves.roomSummary(libraries))
+        val items = ArrayList<Furnisher.Item>()
+        for (shelf in LibraryShelves.shelve(libraries, MAX_FURNITURE)) {
+            items += Furnisher.Item(FurnitureKind.BOOKCASE, null, shelf.label.take(48), decor = false, libraries = shelf.libraries)
+        }
+        for (d in RoomThemes.decor(kind)) items += Furnisher.Item(d, null, "", decor = true)
+        return RoomPlan(LIBRARIES_ID, spec, emptyList(), items, "", kind.level)
     }
 
     /** Door thresholds of a room (hallway door + both possible side doors) stay free. */

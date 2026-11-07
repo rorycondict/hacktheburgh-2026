@@ -77,9 +77,9 @@ class WorldService(private val project: Project, private val cs: CoroutineScope)
         val summaries = project.service<SummaryService>().current()
         val plan = project.service<FloorplanPlanService>().plan
         return if (plan != null && plan.rooms.isNotEmpty()) {
-            WorldLayout.build(plan.rooms, idx.files, idx.revision, summaries, System.currentTimeMillis(), idx.deps, curated = true)
+            WorldLayout.build(plan.rooms, idx.files, idx.revision, summaries, System.currentTimeMillis(), idx.deps, curated = true, libraries = idx.libraries)
         } else {
-            WorldLayout.build(idx.files, idx.revision, summaries, deps = idx.deps)
+            WorldLayout.build(idx.files, idx.revision, summaries, deps = idx.deps, libraries = idx.libraries)
         }
     }
 

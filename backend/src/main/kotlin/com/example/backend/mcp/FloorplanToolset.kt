@@ -47,7 +47,7 @@ class FloorplanToolset : McpToolset {
             appendLine("Each kind lives on its home floor: ground floor = entrance hall, living room, dining room, kitchen, bathroom,")
             appendLine("workshop, greenhouse; upstairs = bedroom, study, library, art studio; basement = lab, utility room, storage.")
             for (k in RoomKind.entries) {
-                if (k == RoomKind.HALLWAY) continue
+                if (k == RoomKind.HALLWAY || k == RoomKind.DEPENDENCIES) continue
                 val floor = when (k.level) { 1 -> "upstairs"; -1 -> "basement"; else -> "ground floor" }
                 append("- ").append(k.name).append(" (").append(k.label).append(", ").append(floor).append("): ").append(k.meaning)
                 append(". Furniture: ").appendLine(RoomThemes.furniture(k).joinToString { RoomThemes.displayName(it).lowercase() })
@@ -100,8 +100,8 @@ class FloorplanToolset : McpToolset {
         connectedTo: List<String> = emptyList(),
     ): String {
         val project = currentCoroutineContext().project
-        val roomKind = RoomKind.entries.filter { it != RoomKind.HALLWAY }.firstOrNull { it.name.equals(kind.trim().replace(' ', '_'), ignoreCase = true) || it.label.equals(kind.trim(), ignoreCase = true) }
-            ?: throw McpExpectedError("Unknown room kind '$kind'. Use one of: ${RoomKind.entries.filter { it != RoomKind.HALLWAY }.joinToString { it.name }}")
+        val roomKind = RoomKind.entries.filter { it != RoomKind.HALLWAY && it != RoomKind.DEPENDENCIES }.firstOrNull { it.name.equals(kind.trim().replace(' ', '_'), ignoreCase = true) || it.label.equals(kind.trim(), ignoreCase = true) }
+            ?: throw McpExpectedError("Unknown room kind '$kind'. Use one of: ${RoomKind.entries.filter { it != RoomKind.HALLWAY && it != RoomKind.DEPENDENCIES }.joinToString { it.name }}")
         if (name.isBlank()) throw McpExpectedError("Room name must not be empty.")
         val idx = WorldService.getInstance(project).index()
         val known = idx.files.mapTo(HashSet()) { it.path }

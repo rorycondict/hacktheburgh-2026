@@ -1,12 +1,15 @@
 package com.example.backend.world
 
 import com.example.backend.session.PathUtil
+import com.example.model.LibraryDto
 import com.intellij.openapi.application.readAction
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootManager
+import com.intellij.openapi.roots.OrderEnumerator
 import com.intellij.openapi.vfs.VfsUtilCore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -20,8 +23,13 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 
-/** [deps]: file path -> paths it refers to (see [DependencyScanner]). */
-data class IndexResult(val files: List<FileInfo>, val revision: String, val deps: Map<String, Set<String>> = emptyMap())
+/** [deps]: file path -> paths it refers to (see [DependencyScanner]). [libraries]: third-party libraries (see [LibraryScanner]). */
+data class IndexResult(
+    val files: List<FileInfo>,
+    val revision: String,
+    val deps: Map<String, Set<String>> = emptyMap(),
+    val libraries: List<LibraryDto> = emptyList(),
+)
 
 /** Walks project content: LOC, language and git churn per file. */
 object ProjectIndexer {
@@ -51,8 +59,23 @@ object ProjectIndexer {
             val revision = GitInfo.head(root)
             val files = walk(root, excluded, churn)
             val deps = try { DependencyScanner.scan(root, files) } catch (e: Exception) { LOG.debug(e); emptyMap() }
-            IndexResult(files, revision, deps)
+            val declared = try { LibraryScanner.scan(root, files) } catch (e: Exception) { LOG.debug(e); emptyList() }
+            IndexResult(files, revision, deps, declared.ifEmpty { modelLibraries(project) })
         }
+    }
+
+    /** Libraries in the IDE's project model; only used when no build manifest declared any (it includes transitive ones). */
+    private suspend fun modelLibraries(project: Project): List<LibraryDto> = try {
+        val names = readAction {
+            val out = LinkedHashSet<String>()
+            OrderEnumerator.orderEntries(project).librariesOnly().forEachLibrary { lib -> lib.name?.let(out::add); true }
+            out
+        }
+        LibraryScanner.fromModelNames(names)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        LOG.debug(e); emptyList()
     }
 
     suspend fun walk(root: Path, excluded: Set<String>, churn: Map<String, Int>): List<FileInfo> {

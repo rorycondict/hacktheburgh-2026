@@ -39,6 +39,9 @@ data class Viewport(val originX: Int, val originY: Int, val scale: Double) {
     fun tileAt(devX: Double, devY: Double): TilePos =
         TilePos(floor((devX - originX) / tilePx).toInt(), floor((devY - originY) / tilePx).toInt())
 
+    /** Device pixel -> world pixel (16 per tile). */
+    fun worldPx(devX: Double, devY: Double): Pair<Double, Double> = (devX - originX) / scale to (devY - originY) / scale
+
     companion object {
         const val TILE = 16
 
@@ -73,6 +76,8 @@ data class MapHighlights(
     val hoverFurniture: FurnitureDto? = null,
     val hoverRoom: RoomDto? = null,
     val selectedPath: String? = null,
+    /** World-pixel rectangle of the hovered book in a dependency-library bookcase. */
+    val hoverBook: java.awt.Rectangle? = null,
 )
 
 /**
@@ -161,8 +166,8 @@ class MapRenderer(private val sprites: Sprites) {
             for (f in furniture) {
                 if (!f.blocking) continue
                 drawables += Drawable((f.y + f.h - 1).toDouble()) {
-                    val name = furnitureSprite(f, touched, failed, serverFailed, nowMs)
-                    val img = sprites.furniture(name, f.w, f.h)
+                    val img = if (Bookcases.isBookcase(f)) Bookcases.image(f)
+                    else sprites.furniture(furnitureSprite(f, touched, failed, serverFailed, nowMs), f.w, f.h)
                     // Taller-than-footprint PNGs stand on the footprint's bottom edge.
                     g.drawImage(img, f.x * T, (f.y + f.h) * T - img.height, null)
                 }
@@ -190,6 +195,10 @@ class MapRenderer(private val sprites: Sprites) {
                 g.draw(RoundRectangle2D.Double(r.x * T + 0.75, r.y * T + 0.75, r.w * T - 1.5, r.h * T - 1.5, 8.0, 8.0))
             }
             highlights.hoverFurniture?.let { softFrame(g, it.x * T, it.y * T, it.w * T, it.h * T, CozyPalette.HOVER, nowMs) }
+            highlights.hoverBook?.let { b ->
+                g.color = c(CozyPalette.CREAM, 230)
+                g.fill(java.awt.Rectangle(b.x, b.y - 1, b.width, b.height + 1))
+            }
 
             // Activity icons in little speech bubbles above heads (on top of everything).
             for (a in agents) {

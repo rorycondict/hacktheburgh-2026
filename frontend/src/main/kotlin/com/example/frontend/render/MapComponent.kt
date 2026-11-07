@@ -1,7 +1,9 @@
 package com.example.frontend.render
 
 import com.example.model.FurnitureDto
+import com.example.model.LibraryDto
 import com.example.model.RoomDto
+import com.example.model.RoomKind
 import com.example.model.SessionDto
 import com.example.model.WorldDto
 import com.example.model.covers
@@ -48,6 +50,8 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
     private val renderer = MapRenderer(sprites)
 
     var onFurnitureClicked: (FurnitureDto) -> Unit = {}
+    /** A single book (library) in a dependency-library bookcase was clicked. */
+    var onBookClicked: (FurnitureDto, LibraryDto) -> Unit = { f, _ -> onFurnitureClicked(f) }
     var onRoomClicked: (RoomDto) -> Unit = {}
     var emptyText: String = ""
         set(value) { field = value; repaint() }
@@ -60,6 +64,8 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
     private var devScale = 1.0
     private var lastView: Viewport? = null
     private var hoverFurniture: FurnitureDto? = null
+    /** Index of the hovered book in [hoverFurniture], when that is a bookcase. */
+    private var hoverBook: Int? = null
     private var hoverRoom: RoomDto? = null
     private var lastTick = System.currentTimeMillis()
     private var disposed = false
@@ -135,7 +141,11 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
                     resetView()
                     return
                 }
-                hitFurniture(e)?.let { onFurnitureClicked(it); return }
+                hitFurniture(e)?.let { f ->
+                    bookUnder(e, f)?.let { onBookClicked(f, f.libraries[it]); return }
+                    onFurnitureClicked(f)
+                    return
+                }
                 hitRoom(e)?.let { onRoomClicked(it) }
             }
 
@@ -143,9 +153,11 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
                 follower.touch(System.currentTimeMillis())
                 val f = hitFurniture(e)
                 val r = if (f == null) hitRoom(e) else null
-                if (f != hoverFurniture || r != hoverRoom) {
+                val book = f?.let { bookUnder(e, it) }
+                if (f != hoverFurniture || r != hoverRoom || book != hoverBook) {
                     hoverFurniture = f
                     hoverRoom = r
+                    hoverBook = book
                     cursor = if (f != null) Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) else Cursor.getDefaultCursor()
                     repaint()
                 }
@@ -153,6 +165,7 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
 
             override fun mouseExited(e: MouseEvent) {
                 hoverFurniture = null
+                hoverBook = null
                 hoverRoom = null
                 repaint()
             }
@@ -258,7 +271,8 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
             val view = viewFor(world, level, devW, devH)
             lastView = view
             renderer.labelFont = font ?: renderer.labelFont
-            val highlights = MapHighlights(hoverFurniture, hoverRoom, selectedPath)
+            val book = hoverFurniture?.let { f -> hoverBook?.takeIf { it < Bookcases.shown(f) }?.let { Bookcases.bookRect(f, it) } }
+            val highlights = MapHighlights(hoverFurniture, hoverRoom, selectedPath, book)
             val from = fadeFrom
             val fadeT = ((now - fadeStart) / FADE_MS.toDouble()).coerceIn(0.0, 1.0)
             if (from != null && fadeT < 1.0 && devW > 0 && devH > 0) {
@@ -367,6 +381,13 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
         return scene.world?.furniture?.firstOrNull { it.covers(p.x, p.y) && !it.decor }
     }
 
+    /** Index of the book under the mouse when [f] is a dependency-library bookcase. */
+    private fun bookUnder(e: MouseEvent, f: FurnitureDto): Int? {
+        if (!Bookcases.isBookcase(f)) return null
+        val (wx, wy) = lastView?.worldPx(e.x * devScale, e.y * devScale) ?: return null
+        return Bookcases.bookAt(f, wx - f.x * Viewport.TILE, wy - f.y * Viewport.TILE)
+    }
+
     private fun hitRoom(e: MouseEvent): RoomDto? {
         val p = tileUnder(e) ?: return null
         return scene.world?.rooms
@@ -395,6 +416,7 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
             )
         }
         hitFurniture(e)?.let { f ->
+            if (f.libraries.isNotEmpty()) return bookUnder(e, f)?.let { bookTip(f.libraries[it]) } ?: libraryTip(f)
             if (f.path.isEmpty()) return html("<b>Server rack</b>", "Agents come here to run commands.")
             val facts = listOfNotNull(f.language.ifBlank { null }, "${f.loc} LOC", "churn ${f.churn} (30 days)").joinToString(" &middot; ") { esc(it) }
             return html(
@@ -407,11 +429,38 @@ class MapComponent(sprites: Sprites, colorSlot: (String) -> Int) : JComponent(),
             return html(
                 "<b>${esc(r.name)}</b> &middot; ${esc(r.kind.label)}" + (r.path.takeIf { it.isNotEmpty() }?.let { " <span style='color:gray'>${esc(it)}/</span>" } ?: ""),
                 "<i>${esc(r.kind.meaning)}</i>",
-                "${r.fileCount} files &middot; ${r.loc} LOC",
+                if (r.kind == RoomKind.DEPENDENCIES) "${scene.world?.libraries?.size ?: 0} libraries &middot; <i>hover a shelf for details</i>"
+                else "${r.fileCount} files &middot; ${r.loc} LOC",
                 r.summary.ifBlank { null }?.let { esc(it) },
             )
         }
         return null
+    }
+
+    /** One book: a library with its version, scope and where it is declared. */
+    private fun bookTip(l: LibraryDto): String = html(
+        "<b>${esc(l.name)}</b>" + (l.version.ifBlank { null }?.let { " ${esc(it)}" } ?: ""),
+        l.group.ifBlank { null }?.let { "<span style='color:gray'>${esc(it)}</span>" },
+        esc("${l.ecosystem} · ${l.scope}"),
+        l.declaredIn.ifBlank { null }?.let { "Declared in ${esc(it)}" + (if (l.line > 0) ":${l.line}" else "") },
+        if (l.declaredIn.isNotBlank()) "<i>Click to open where it is declared</i>" else null,
+    )
+
+    /** A dependency-library bookcase: its libraries with version and scope, and the build files declaring them. */
+    private fun libraryTip(f: FurnitureDto): String {
+        val libs = f.libraries
+        val rows = libs.take(10).map { l ->
+            "${esc(l.name)}" + (l.version.ifBlank { null }?.let { " <b>${esc(it)}</b>" } ?: "") +
+                " <span style='color:gray'>${esc(listOfNotNull(l.group.ifBlank { null }, l.ecosystem, l.scope).joinToString(" · "))}</span>"
+        }
+        val more = if (libs.size > 10) "&hellip; and ${libs.size - 10} more" else null
+        val where = libs.map { it.declaredIn }.filter { it.isNotBlank() }.distinct()
+        return html(
+            "<b>${esc(f.label.ifBlank { "Bookcase" })}</b> &middot; ${libs.size} book${if (libs.size == 1) "" else "s"}",
+            *rows.toTypedArray(), more,
+            where.takeIf { it.isNotEmpty() }?.let { "<span style='color:gray'>Declared in ${esc(it.joinToString(", "))}</span>" },
+            "<i>Hover a book for details</i>",
+        )
     }
 
     private fun html(vararg lines: String?): String {

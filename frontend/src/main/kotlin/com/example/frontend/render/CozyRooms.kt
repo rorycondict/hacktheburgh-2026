@@ -56,6 +56,7 @@ internal object CozyRooms {
         RoomKind.BEDROOM -> RoomStyle(FloorMat.CARPET, 0xd6b0bc, 0xc49ca8, 0xeed6de, 0xdcb8c6, WallPattern.DOTS, 0xf3e2bf, 0xcf8fa6, 0xffd8b0, 50)
         RoomKind.STUDY -> RoomStyle(FloorMat.PLANKS, 0xa8744a, 0x8f6240, 0xbcc6d0, 0xa2afbe, WallPattern.STRIPES, CozyPalette.WOOD_DARK, CozyPalette.DUSK, 0xffe2b0)
         RoomKind.LIBRARY -> RoomStyle(FloorMat.CARPET, 0x52795c, 0x45694f, 0x7a9a7c, 0x67876a, WallPattern.DIAMONDS, CozyPalette.WOOD_DARK, CozyPalette.SAGE_DARK, 0xffd28a, 54)
+        RoomKind.DEPENDENCIES -> RoomStyle(FloorMat.CARPET, 0x7a4a3e, 0x683e33, 0xc9b28a, 0xb59c74, WallPattern.STRIPES, CozyPalette.WOOD_DARK, CozyPalette.CLAY, 0xffd28a, 54)
         RoomKind.GALLERY -> RoomStyle(FloorMat.PARQUET, 0xdcc3a0, 0xc4a882, 0xf4ece0, 0xe2d6c6, WallPattern.PLAIN, 0xd8c8b0, 0xa996cc, 0xfff4dc)
         RoomKind.LAB -> RoomStyle(FloorMat.BIG_TILES, 0xcfe8dc, 0xa9cfbe, 0xdcf0e6, 0xb4dccb, WallPattern.TILES, 0xb4dccb, 0x72b5ab, 0xeafff4)
         RoomKind.UTILITY_ROOM -> RoomStyle(FloorMat.SLATE, 0x8e9294, 0x777b7e, 0xaaa8a0, 0x8f8d86, WallPattern.BRICK, CozyPalette.STONE_DARK, CozyPalette.STONE_DARK, 0xe6eee4, 34)

@@ -63,7 +63,36 @@ data class WorldDto(
     val levels: List<LevelDto> = emptyList(),
     /** Staircases joining levels: stepping onto one end continues from the other. */
     val stairs: List<StairsDto> = emptyList(),
+    /** Every third-party library the project declares; the [RoomKind.DEPENDENCIES] room shows them on its shelves. */
+    val libraries: List<LibraryDto> = emptyList(),
 )
+
+/** A third-party library the project depends on, as declared in a build file or found in the IDE's project model. */
+@Serializable
+data class LibraryDto(
+    /** Artifact / package name, e.g. "kotlinx-serialization-json" or "react". */
+    val name: String,
+    /** Maven group id, npm scope ("@types"), Go module host/owner; "" if none. Shelves are grouped by it. */
+    val group: String,
+    /** Declared version or range; "" if unknown (e.g. managed by a BOM or plugin). */
+    val version: String,
+    /** "Maven", "npm", "PyPI", "Cargo", "Go", "CMake", "NuGet"... "Vendored" for copies in third_party/-style dirs, "IDE" from the project model. */
+    val ecosystem: String,
+    /** Where it is used: "main", "test", "dev", "compile-only", "runtime", "build"... */
+    val scope: String,
+    /** Project-relative build file that declares it ('/' separators); "" when it came from the project model. */
+    val declaredIn: String,
+    /** 1-based line in [declaredIn] where it is declared; 0 if unknown. */
+    val line: Int = 0,
+) {
+    /** "group:name" for Maven; other ecosystems just the name (npm names already carry their "@scope/"). */
+    val coordinate: String get() = if (group.isEmpty() || ecosystem != "Maven") name else "$group:$name"
+
+    companion object {
+        /** Books one [FurnitureKind.BOOKCASE] holds (3 shelves of 14); the frontend draws this many at most. */
+        const val BOOKS_PER_CASE = 42
+    }
+}
 
 /** One floor of the house: index 0 = ground floor, 1 = upstairs, -1 = basement. Bounds in tiles. */
 @Serializable
@@ -124,6 +153,8 @@ enum class RoomKind(val label: String, val meaning: String, val level: Int) {
     BEDROOM("Bedroom", "state and persistence: sessions, caches, stores, state that rests between calls", 1),
     STUDY("Study", "data models, DTOs, types, schemas, interfaces and contracts", 1),
     LIBRARY("Library", "documentation, READMEs, guides, design docs", 1),
+    /** Generated from the build files: bookcases whose books are the third-party libraries. Not for the agent. */
+    DEPENDENCIES("Dependency library", "the third-party libraries the project uses: one book per library, shelved by group", 1),
     GALLERY("Art studio", "UI: views, components, rendering, styling, tool windows", 1),
     LAB("Laboratory", "tests, fixtures, test data, benchmarks", -1),
     UTILITY_ROOM("Utility room", "plumbing: networking, RPC transport, IO, protocols, adapters", -1),
@@ -154,6 +185,8 @@ enum class FurnitureKind {
     CHALKBOARD, MICROSCOPE,
     // Library
     LECTERN, READING_CHAIR,
+    // Dependency library: a 2x1 case whose books are the libraries in [FurnitureDto.libraries]
+    BOOKCASE,
     // Storage
     CRATE, BARREL, SHELF,
     // Greenhouse
@@ -199,6 +232,8 @@ data class FurnitureDto(
      * pieces sit on the [Tiles.FACE] row of the room's north wall.
      */
     val blocking: Boolean = true,
+    /** For bookcases in the [RoomKind.DEPENDENCIES] room: one book per library, in shelf order. Such pieces have an empty [path]. */
+    val libraries: List<LibraryDto> = emptyList(),
 )
 
 /** True if the furniture's footprint covers (x, y). */

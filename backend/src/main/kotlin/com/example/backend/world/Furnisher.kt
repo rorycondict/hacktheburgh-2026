@@ -1,6 +1,7 @@
 package com.example.backend.world
 
 import com.example.model.FurnitureKind
+import com.example.model.LibraryDto
 
 /**
  * Arranges furniture in one room the way a person would: beds and fridges in corners, counters and
@@ -10,7 +11,8 @@ import com.example.model.FurnitureKind
  * below the north wall's face; wall-hung pieces get y = -1 (the face row).
  */
 internal object Furnisher {
-    class Item(val kind: FurnitureKind, val file: FileInfo?, val label: String, val decor: Boolean)
+    /** [libraries]: for shelves of the dependency library, the libraries this piece stands for ([file] is null). */
+    class Item(val kind: FurnitureKind, val file: FileInfo?, val label: String, val decor: Boolean, val libraries: List<LibraryDto> = emptyList())
 
     class Placed(val item: Item, val x: Int, val y: Int, val piece: Piece)
 

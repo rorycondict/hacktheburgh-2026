@@ -57,7 +57,7 @@ data class Piece(val w: Int, val h: Int, val placement: Placement) {
 /** Per-kind look: floor, furniture set and decorations, plus where each furniture kind goes. */
 object RoomThemes {
     fun floor(kind: RoomKind): Char = when (kind) {
-        RoomKind.LIVING_ROOM, RoomKind.LIBRARY, RoomKind.BEDROOM -> Tiles.FLOOR_CARPET
+        RoomKind.LIVING_ROOM, RoomKind.LIBRARY, RoomKind.DEPENDENCIES, RoomKind.BEDROOM -> Tiles.FLOOR_CARPET
         RoomKind.KITCHEN, RoomKind.LAB, RoomKind.UTILITY_ROOM, RoomKind.GREENHOUSE, RoomKind.BATHROOM -> Tiles.FLOOR_TILE
         RoomKind.LOBBY, RoomKind.HALLWAY, RoomKind.WORKSHOP, RoomKind.STUDY, RoomKind.GALLERY, RoomKind.STORAGE,
         RoomKind.DINING_ROOM -> Tiles.FLOOR_WOOD
@@ -75,6 +75,7 @@ object RoomThemes {
         RoomKind.BEDROOM -> listOf(BED, WARDROBE, NIGHTSTAND, DRESSER)
         RoomKind.STUDY -> listOf(WRITING_DESK, GLOBE)
         RoomKind.LIBRARY -> listOf(LECTERN, READING_CHAIR)
+        RoomKind.DEPENDENCIES -> emptyList()
         RoomKind.GALLERY -> listOf(EASEL, STATUE)
         RoomKind.LAB -> listOf(CHALKBOARD, MICROSCOPE)
         RoomKind.UTILITY_ROOM -> listOf(BOILER, WASHER, PIPES)
@@ -93,6 +94,7 @@ object RoomThemes {
         RoomKind.BEDROOM -> listOf(DRESSER, WARDROBE)
         RoomKind.STUDY -> listOf(FILING_CABINET, BOOKSHELF)
         RoomKind.LIBRARY -> listOf(BOOKSHELF)
+        RoomKind.DEPENDENCIES -> listOf(BOOKCASE)
         RoomKind.GALLERY -> listOf(PAINTING, EASEL)
         RoomKind.LAB -> listOf(TEST_BENCH)
         RoomKind.UTILITY_ROOM -> listOf(SHELF, CRATE)
@@ -114,6 +116,7 @@ object RoomThemes {
         RoomKind.BEDROOM -> listOf(RUG, LAMP, PAINTING)
         RoomKind.STUDY -> listOf(RUG, LAMP, CLOCK)
         RoomKind.LIBRARY -> listOf(RUG, LAMP)
+        RoomKind.DEPENDENCIES -> listOf(RUG, LECTERN, READING_CHAIR, LAMP, CLOCK)
         RoomKind.GALLERY -> listOf(PLANT)
         RoomKind.LAB -> listOf(PLANT)
         RoomKind.UTILITY_ROOM -> emptyList()
@@ -128,7 +131,7 @@ object RoomThemes {
         SOFA -> Piece(2, 1, Placement.CENTER)
         ARMCHAIR, EASEL, GLOBE, ANVIL, LECTERN, READING_CHAIR, CHAIR -> Piece(1, 1, Placement.CENTER)
         NIGHTSTAND -> Piece(1, 1, Placement.NEAR_BED)
-        COUNTER, WORKBENCH, FIREPLACE, PIANO, TEST_BENCH, SIDEBOARD, FLOWER_BED -> Piece(2, 1, Placement.WALL)
+        COUNTER, WORKBENCH, BOOKCASE, FIREPLACE, PIANO, TEST_BENCH, SIDEBOARD, FLOWER_BED -> Piece(2, 1, Placement.WALL)
         CHALKBOARD -> Piece(2, 1, Placement.WALL_HUNG)
         PAINTING, CLOCK, MIRROR, TOOL_RACK, PIPES, TV -> Piece(1, 1, Placement.WALL_HUNG)
         RUG -> Piece(3, 2, Placement.FLOOR)
