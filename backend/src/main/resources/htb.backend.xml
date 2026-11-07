@@ -7,5 +7,6 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <platform.rpc.backend.remoteApiProvider implementation="com.example.BackendRpcApiProvider"/>
+        <postStartupActivity implementation="com.example.backend.FloorplanStartupActivity"/>
     </extensions>
 </idea-plugin>

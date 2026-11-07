@@ -4,13 +4,22 @@
         <module name="htb.shared"/>
     </dependencies>
 
+    <resource-bundle>messages.FrontendBundle</resource-bundle>
+
     <extensions defaultExtensionNs="com.intellij">
         <!-- If the plugin is published on JetBrains Marketplace, errors reported by users are available on the plugin page.
              See https://plugins.jetbrains.com/docs/marketplace/error-handler.html#developers-side for details. -->
         <errorHandler implementation="com.intellij.diagnostic.JetBrainsMarketplaceErrorReportSubmitter"/>
+        <!-- Display name comes from toolwindow.stripe.AgentVisualiser in FrontendBundle.properties. -->
         <toolWindow
-                id="ModularPlugin"
-                factoryClass="com.example.toolWindow.ModularPluginToolWindowFactory"
-                icon="com.example.ModularPluginIcons.ToolWindow"/>
+                id="AgentVisualiser"
+                anchor="right"
+                factoryClass="com.example.frontend.toolWindow.VisualiserToolWindowFactory"
+                icon="com.example.frontend.FrontendIcons.ToolWindow"/>
+        <notificationGroup id="AgentVisualiser.Permissions" displayType="STICKY_BALLOON"
+                           bundle="messages.FrontendBundle" key="notification.group.permissions"/>
+        <notificationGroup id="AgentVisualiser.General" displayType="BALLOON"
+                           bundle="messages.FrontendBundle" key="notification.group.general"/>
+        <postStartupActivity implementation="com.example.frontend.PermissionWatcher"/>
     </extensions>
 </idea-plugin>
