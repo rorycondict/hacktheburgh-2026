@@ -18,20 +18,20 @@ source = { editable = "packages/agent" }
 
 [[package]]
 name = "cli"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "packages/cli" }
 
 [[package]]
 name = "core"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "packages/core" }
 
 [[package]]
 name = "hacktheburgh-2026"
-version = "0.1.0"
-source = { editable = "." }
+version = "1.0.0"
+source = { virtual = "." }
 
 [[package]]
 name = "mcp"
-version = "0.1.0"
+version = "1.0.0"
 source = { editable = "packages/mcp" }
