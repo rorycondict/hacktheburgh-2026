@@ -26,20 +26,6 @@ import java.awt.image.BufferedImage
  * tunic, so per-agent recolouring still works on them.
  */
 internal object CozyFallbacks {
-    /** Furniture [name] drawn for a footprint of [w] x [h] tiles. */
-    fun drawSized(name: String, w: Int, h: Int): BufferedImage {
-        if (w <= 1 && h <= 1) return draw(name)
-        val img = BufferedImage(w * 16, h * 16, BufferedImage.TYPE_INT_ARGB)
-        val p = Px(img)
-        if (!CozyFurniture.drawSized(p, name.removePrefix("obj_"), w * 16, h * 16)) {
-            // No art for this size: the 1x1 piece, centred at the bottom of the footprint.
-            p.ox = (w * 16 - 16) / 2
-            p.oy = h * 16 - 16
-            if (!CozyFurniture.draw(p, name.removePrefix("obj_"))) unknown(p)
-        }
-        return img
-    }
-
     fun draw(name: String): BufferedImage {
         val img = BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB)
         val p = Px(img)

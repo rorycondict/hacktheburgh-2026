@@ -440,7 +440,7 @@ class MapRenderer(private val sprites: Sprites) {
         val fm = g.fontMetrics
         val maxW = ((r.w - 2) * view.tilePx).toInt()
         val kindLabel = r.kind.label
-        var label = if (kindLabel.isNotBlank() && !kindLabel.equals(r.name, ignoreCase = true)) "$kindLabel · ${r.name}" else r.name
+        var label = if (kindLabel.isNotBlank() && !r.name.contains(kindLabel, ignoreCase = true)) "$kindLabel · ${r.name}" else r.name
         if (fm.stringWidth(label) + 14 > maxW) label = r.name
         label = truncate(fm, label, maxW - 14)
         val faceTop = view.originY + (r.y + 1) * view.tilePx
@@ -448,7 +448,8 @@ class MapRenderer(private val sprites: Sprites) {
         val w = fm.stringWidth(label) + 14
         val h = fm.height + 2
         val x = (cx - w / 2.0).roundToInt()
-        val y = (faceTop + (view.tilePx * 0.55 - h) / 2).roundToInt().coerceAtLeast(0)
+        // Hung on the wall cap above the face, so wall-hung furniture on the face stays visible.
+        val y = (faceTop - view.tilePx * 3 / 16 - h / 2.0).roundToInt().coerceAtLeast(0)
         val arc = h * 0.6
         g.color = c(CozyPalette.NIGHT, 110)
         g.fill(RoundRectangle2D.Double(x + 1.5, y + 2.5, w.toDouble(), h.toDouble(), arc, arc))

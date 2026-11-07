@@ -44,7 +44,14 @@ class Sprites(private val anchor: Class<*> = Sprites::class.java, private val ba
         if (w <= 1 && h <= 1) return get(name)
         val png = get(name)
         if (hasPng(name) && png.width == w * 16 && png.height == h * 16) return png
-        return images.getOrPut("$name@${w}x$h") { CozyFallbacks.drawSized(name, w, h) }
+        return images.getOrPut("$name@${w}x$h") {
+            val img = BufferedImage(w * 16, h * 16, BufferedImage.TYPE_INT_ARGB)
+            if (!CozyFurniture.drawSized(CozyFallbacks.Px(img), name.removePrefix("obj_"), w * 16, h * 16)) {
+                // No art for this size: the 1x1 piece (PNG or stand-in), centred on the footprint's bottom edge.
+                img.createGraphics().apply { drawImage(png, (img.width - png.width) / 2, img.height - png.height, null); dispose() }
+            }
+            img
+        }
     }
 
     /** Tile sprite [name] as a PNG, or null when tiles are drawn procedurally ([PREFER_PNG_TILES] off or no PNG). */
