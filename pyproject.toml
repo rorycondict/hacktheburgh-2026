@@ -1,10 +1,13 @@
 [project]
-name = "hacktheburgh-2026"
+name = "htb"
 version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.15"
-dependencies = []
+dependencies = [
+    "agent-client-protocol>=0.12.1",
+    "mcp>=2.3.0",
+]
 
 [project.scripts]
 htb = "htb:main"
