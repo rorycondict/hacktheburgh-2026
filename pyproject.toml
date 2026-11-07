@@ -7,7 +7,7 @@ requires-python = ">=3.15"
 dependencies = []
 
 [project.scripts]
-hacktheburgh-2026 = "hacktheburgh_2026:main"
+htb = "htb:main"
 
 [build-system]
 requires = ["uv_build>=0.13.7,<0.14.0"]
