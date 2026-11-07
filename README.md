@@ -2,7 +2,6 @@
 
 Tracks:
 - JetBrains
-- InstaLILY
 - Bank of Scotland (Lloyds)
 
 (+ Metaview)
