@@ -38,6 +38,19 @@ class AcpJsonWrapperTest {
     }
 
     @Test
+    fun airAgentsReplaceClashingCustomWrap() {
+        val air = listOf(AirAgents.Agent("acp.registry.junie", "Junie", "/air/junie/junie.exe", listOf("--acp=true"), mapOf("K" to "v")))
+        val out = AcpJsonWrapper.wrap(input, "java", "tap.jar", SUFFIX, air)
+        assertEquals(listOf("Junie"), out.wrapped)
+        val w = (out.root["agent_servers"] as JsonObject)["Junie" + SUFFIX] as JsonObject
+        assertEquals(
+            listOf("-jar", "tap.jar", "--name", "Junie", "--", "/air/junie/junie.exe", "--acp=true"),
+            (w["args"] as JsonArray).map { (it as JsonPrimitive).content },
+        )
+        assertEquals(Json.parseToJsonElement("""{"K":"v"}"""), w["env"])
+    }
+
+    @Test
     fun emptyFile() {
         val out = AcpJsonWrapper.wrap(JsonObject(emptyMap()), "java", "tap.jar", SUFFIX)
         assertEquals(0, out.originals)

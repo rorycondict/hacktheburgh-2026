@@ -10,7 +10,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import java.io.File
 
-/** Adds tap-wrapped copies of the agents in `~/.jetbrains/acp.json`. */
+/** Adds tap-wrapped copies of the custom agents in `~/.jetbrains/acp.json` and of the agents Air installed ([AirAgents]). */
 object AcpJsonWrapper {
     private const val SERVERS = "agent_servers"
 
@@ -20,7 +20,7 @@ object AcpJsonWrapper {
      * Pure transformation; keeps every original entry and any unknown fields.
      * [suffix] is appended to each wrapped entry's name; the caller derives it from the product name.
      */
-    fun wrap(root: JsonObject, javaPath: String, tapJar: String, suffix: String): Outcome {
+    fun wrap(root: JsonObject, javaPath: String, tapJar: String, suffix: String, airAgents: List<AirAgents.Agent> = emptyList()): Outcome {
         val servers = (root[SERVERS] as? JsonObject) ?: JsonObject(emptyMap())
         val result = LinkedHashMap<String, JsonElement>(servers)
         val wrapped = ArrayList<String>()
@@ -40,6 +40,18 @@ object AcpJsonWrapper {
             // Refresh existing wrapped copies too (the tap jar path may have moved), never wrap twice.
             result[wrappedName] = JsonObject(newEntry)
         }
+        // Agents Air installed from the registry. They win a name clash with a custom entry, since Air manages them.
+        for (agent in airAgents) {
+            originals++
+            val wrappedName = agent.name + suffix
+            wrapped.remove(agent.name); already.remove(agent.name)
+            if (servers.containsKey(wrappedName)) already += agent.name else wrapped += agent.name
+            val entry = LinkedHashMap<String, JsonElement>()
+            entry["command"] = JsonPrimitive(javaPath)
+            entry["args"] = JsonArray((listOf("-jar", tapJar, "--name", agent.name, "--", agent.command) + agent.args).map(::JsonPrimitive))
+            if (agent.env.isNotEmpty()) entry["env"] = JsonObject(agent.env.mapValues { JsonPrimitive(it.value) })
+            result[wrappedName] = JsonObject(entry)
+        }
         val newRoot = LinkedHashMap<String, JsonElement>(root)
         newRoot[SERVERS] = JsonObject(result)
         return Outcome(JsonObject(newRoot), wrapped, already, originals)
@@ -53,7 +65,7 @@ object AcpJsonWrapper {
     private val pretty = Json { prettyPrint = true; prettyPrintIndent = "  " }
 
     /** Reads, backs up, rewrites [acpJson]. */
-    fun wrapFile(acpJson: File, javaPath: String, tapJar: File, suffix: String): WrapResultDto {
+    fun wrapFile(acpJson: File, javaPath: String, tapJar: File, suffix: String, air: AirAgents.Discovery = AirAgents.Discovery(emptyList(), emptyList())): WrapResultDto {
         val path = acpJson.absolutePath
         if (!tapJar.isFile) {
             return WrapResultDto(path, emptyList(), emptyList(), "Tap jar not found at ${tapJar.absolutePath}; rebuild the plugin (prepareSandbox / buildPlugin).")
@@ -66,7 +78,7 @@ object AcpJsonWrapper {
         } catch (e: Exception) {
             return WrapResultDto(path, emptyList(), emptyList(), "Could not parse acp.json (${e.message}); left unchanged.")
         }
-        val out = wrap(root, javaPath, tapJar.absolutePath, suffix)
+        val out = wrap(root, javaPath, tapJar.absolutePath, suffix, air.agents)
         try {
             acpJson.parentFile?.mkdirs()
             val bak = File(acpJson.parentFile, "acp.json.bak")
@@ -78,10 +90,11 @@ object AcpJsonWrapper {
         } catch (e: Exception) {
             return WrapResultDto(path, emptyList(), emptyList(), "Could not write acp.json: ${e.message}")
         }
+        val skipped = if (air.skipped.isEmpty()) "" else " Skipped: ${air.skipped.joinToString()}."
         val message = when {
-            out.originals == 0 -> "No custom agents in $path yet. Add one under \"agent_servers\" (e.g. \"Junie\": {\"command\": \"junie\", \"args\": [\"--acp=true\"]}) and run Wrap again."
-            out.wrapped.isEmpty() -> "All ${out.alreadyWrapped.size} agent(s) were already wrapped (paths refreshed). Pick the \"…$suffix\" entries in Air."
-            else -> "Wrapped ${out.wrapped.joinToString()}. Restart Air / the IDE, then pick the \"…$suffix\" entries. Backup: acp.json.bak"
+            out.originals == 0 -> "No agents found: install one in Air, or add one to $path under \"agent_servers\" (e.g. \"Junie\": {\"command\": \"junie\", \"args\": [\"--acp=true\"]}), then run Wrap again.$skipped"
+            out.wrapped.isEmpty() -> "All ${out.alreadyWrapped.size} agent(s) were already wrapped (paths refreshed). Pick the \"…$suffix\" entries in Air.$skipped"
+            else -> "Wrapped ${out.wrapped.joinToString()}. Restart Air / the IDE, then pick the \"…$suffix\" entries. Backup: acp.json.bak$skipped"
         }
         return WrapResultDto(path, out.wrapped, out.alreadyWrapped, message)
     }

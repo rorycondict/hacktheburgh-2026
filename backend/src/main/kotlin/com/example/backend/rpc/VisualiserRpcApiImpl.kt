@@ -12,6 +12,7 @@ import com.example.backend.user.UserPositionService
 import com.example.backend.world.FileKinds
 import com.example.backend.world.WorldService
 import com.example.backend.wrap.AcpJsonWrapper
+import com.example.backend.wrap.AirAgents
 import com.example.model.SessionDto
 import com.example.model.TapStatusDto
 import com.example.model.WorldDto
@@ -19,6 +20,7 @@ import com.example.model.WrapResultDto
 import com.example.rpc.VisualiserRpcApi
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
@@ -77,7 +79,7 @@ class VisualiserRpcApiImpl : VisualiserRpcApi {
             acpJson.absolutePath, emptyList(), emptyList(),
             "Could not locate the plugin's tap/acp-tap.jar; rebuild the plugin (prepareSandbox / buildPlugin).",
         )
-        AcpJsonWrapper.wrapFile(acpJson, java, jar, " (" + ModularPluginBackendBundle.message("product.name") + ")")
+        AcpJsonWrapper.wrapFile(acpJson, java, jar, " (" + ModularPluginBackendBundle.message("product.name") + ")", AirAgents.discover(listOf(PathManager.getSystemDir().toFile())))
     }
 
     override suspend fun startReplay(projectId: ProjectId, logFile: String?): String {
